@@ -5,6 +5,12 @@
   const manifestLink = document.querySelector('link[rel="manifest"]');
   if (manifestLink) manifestLink.href = new URL("manifest.webmanifest", appBase).href;
 
+  // Load the photo watermark processor even when service workers are unavailable.
+  const watermarkScript = document.createElement("script");
+  watermarkScript.src = new URL("photo-watermark.js", appBase).href;
+  watermarkScript.async = false;
+  document.head.append(watermarkScript);
+
   const controls = document.querySelector(".date-controls");
   if (!controls || !("serviceWorker" in navigator)) return;
 
