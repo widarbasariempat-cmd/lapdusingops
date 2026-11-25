@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dokumentasi Kegiatan Babinsa</title>
     <link rel="stylesheet" href="styles.css" />
+    <style>
+      /* Lampiran A dan B selalu tampil; pilihan A/B hanya dipicu tombol unggah. */
+      #report-type { display: none !important; }
+      #budget-document[hidden] { display: block !important; }
+    </style>
 
     <script>
       // ✅ Default kode lampiran (bisa di-override oleh JSON dalam ZIP)
@@ -22,8 +27,8 @@
         "Pancasari":    { A: "A10", B: "B10" },
         "Silangjana":   { A: "A11", B: "B11" },
         "Panji Anom":   { A: "A12", B: "B12" },
-        "Pegadungan":   { A: "A13", B: "B13" },
-        "Sambangan":    { A: "A14", B: "B14" }
+        "Pegadungan":  { A: "A13", B: "B13" },
+        "Sambangan":   { A: "A14", B: "B14" }
       };
 
       window.applyVillage = function (village) {
@@ -44,7 +49,6 @@
       window.addEventListener("load", function () {
         const sel = document.getElementById("report-village");
         if (!sel) return;
-        // Jangan rebuild jika script.js sudah mengisi (ada opsi dengan value non-empty)
         if (sel.querySelector('option[value]:not([value=""])')) {
           if (!sel.dataset.listenerAttached) {
             sel.addEventListener("change", function (e) { window.applyVillage(e.target.value); });
@@ -94,8 +98,10 @@
         <option value="budget">Unggah Rincian Dukungan Anggaran (A)</option>
         <option value="photos">Unggah Dokumentasi Foto (B)</option>
       </select>
+      <button id="upload-budget-button" class="print-button" type="button">Unggah TXT Lampiran A</button>
+      <button id="upload-photos-button" class="print-button" type="button">Unggah Foto Lampiran B</button>
 
-      <!-- ✅ TOMBOL BARU: Unggah ZIP all-in-one -->
+      <!-- ✅ Unggah ZIP all-in-one -->
       <button id="upload-zip-button" class="print-button" type="button">Unggah ZIP Lengkap (JSON+TXT+PNG)</button>
 
       <button id="print-button" class="print-button" type="button">Cetak / Simpan PDF</button>
@@ -130,7 +136,7 @@
     <input id="photo-files-input" type="file" accept="image/*,.zip,application/zip" multiple aria-label="Pilih foto atau arsip ZIP untuk dokumentasi foto" hidden />
     <input id="budget-text-input" type="file" accept=".txt,text/plain" aria-label="Pilih file TXT berisi tanggal dan uraian kegiatan" hidden />
 
-    <!-- ✅ INPUT BARU: ZIP all-in-one -->
+    <!-- ZIP all-in-one -->
     <input id="all-in-one-zip-input" type="file" accept=".zip,application/zip" aria-label="Unggah ZIP lengkap berisi JSON, TXT, dan PNG" hidden />
 
     <!-- ================= LAMPIRAN A (di atas) ================= -->
@@ -279,5 +285,18 @@
     <script src="data/report-data.js"></script>
     <script src="zip-reader.js"></script>
     <script src="script.js"></script>
+    <script>
+      function triggerAttachmentUpload(type) {
+        const selector = document.getElementById("report-type");
+        selector.value = type;
+        selector.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      document.getElementById("upload-budget-button").addEventListener("click", function () {
+        triggerAttachmentUpload("budget");
+      });
+      document.getElementById("upload-photos-button").addEventListener("click", function () {
+        triggerAttachmentUpload("photos");
+      });
+    </script>
   </body>
 </html>
