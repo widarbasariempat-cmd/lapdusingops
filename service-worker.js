@@ -1,9 +1,10 @@
-const CACHE_NAME = "lapdusingops-shell-v2";
+const CACHE_NAME = "lapdusingops-shell-v3";
 const SHELL_FILES = [
   "./",
   "./index.html",
   "./styles.css",
   "./script.js",
+  "./pwa.js",
   "./photo-watermark.js",
   "./zip-reader.js",
   "./data/report-data.js",
