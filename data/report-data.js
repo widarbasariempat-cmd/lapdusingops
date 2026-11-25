@@ -140,3 +140,120 @@ window.reportData = {
     }
   }
 };
+
+// Turn the former all-in-one ZIP control into a date-aware JSON uploader.
+document.addEventListener("DOMContentLoaded", () => {
+  const uploadButton = document.getElementById("upload-zip-button");
+  const monthSelect = document.getElementById("report-month");
+  const yearSelect = document.getElementById("report-year");
+  const villageSelect = document.getElementById("report-village");
+  const photoStatus = document.getElementById("photo-status");
+  const warningDialog = document.getElementById("selection-warning-dialog");
+  const warningTitle = document.getElementById("selection-warning-title");
+  const warningMessage = document.getElementById("selection-warning-message");
+  if (!uploadButton || !monthSelect || !yearSelect || !villageSelect) return;
+
+  uploadButton.textContent = "Unggah JSON Kegiatan (berdasarkan tanggal)";
+  uploadButton.setAttribute("aria-label", "Unggah file JSON kegiatan untuk mengatur tanggal dan desa laporan");
+  const jsonInput = document.createElement("input");
+  jsonInput.type = "file";
+  jsonInput.accept = ".json,application/json";
+  jsonInput.hidden = true;
+  jsonInput.setAttribute("aria-label", "Pilih file JSON data kegiatan");
+  document.body.append(jsonInput);
+
+  const monthNames = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+
+  function showJsonMessage(title, message) {
+    if (!warningDialog || warningDialog.open) return;
+    warningTitle.textContent = title;
+    warningMessage.textContent = message;
+    warningDialog.showModal();
+  }
+
+  function parseIndonesianDate(value) {
+    if (typeof value !== "string") return null;
+    const match = value.trim().match(/^(\d{1,2})\s+([\p{L}]+)\s+(\d{4})$/u);
+    if (!match) return null;
+    const monthIndex = monthNames.findIndex((month) =>
+      month.toLocaleLowerCase("id-ID") === match[2].toLocaleLowerCase("id-ID")
+    );
+    const day = Number(match[1]);
+    const year = Number(match[3]);
+    if (monthIndex < 0 || day < 1 || day > new Date(year, monthIndex + 1, 0).getDate()) return null;
+    return { day, monthIndex, year };
+  }
+
+  uploadButton.addEventListener("click", () => {
+    jsonInput.value = "";
+    jsonInput.click();
+  });
+
+  jsonInput.addEventListener("change", async () => {
+    const file = jsonInput.files?.[0];
+    if (!file) return;
+
+    try {
+      const records = JSON.parse(await file.text());
+      if (!Array.isArray(records) || records.length === 0) {
+        throw new Error("Isi file harus berupa array JSON berisi minimal satu data kegiatan.");
+      }
+
+      const normalized = records.map((record, index) => {
+        if (!record || typeof record !== "object" || Array.isArray(record)) {
+          throw new Error(`Data nomor ${index + 1} bukan objek JSON yang valid.`);
+        }
+        const date = parseIndonesianDate(record.tanggal);
+        if (!date || typeof record.nama_desa !== "string" || !record.nama_desa.trim() ||
+            typeof record.koordinat !== "string" || !record.koordinat.trim() ||
+            typeof record.waktu !== "string" || !record.waktu.trim()) {
+          throw new Error(`Data nomor ${index + 1} wajib memiliki koordinat, nama_desa, tanggal (contoh: 05 November 2026), dan waktu.`);
+        }
+        return { ...record, nama_desa: record.nama_desa.trim(), date };
+      });
+
+      const first = normalized[0];
+      const matchesFirstPeriod = (record) =>
+        record.nama_desa.toLocaleLowerCase("id-ID") === first.nama_desa.toLocaleLowerCase("id-ID") &&
+        record.date.monthIndex === first.date.monthIndex && record.date.year === first.date.year;
+      if (!normalized.every(matchesFirstPeriod)) {
+        throw new Error("Semua data dalam satu file JSON harus memiliki desa, bulan, dan tahun yang sama.");
+      }
+
+      const villageOption = Array.from(villageSelect.options).find((option) =>
+        option.value.toLocaleLowerCase("id-ID") === first.nama_desa.toLocaleLowerCase("id-ID")
+      );
+      if (!villageOption) throw new Error(`Desa/kelurahan '${first.nama_desa}' tidak tersedia di daftar laporan.`);
+
+      const yearValue = String(first.date.year);
+      if (!Array.from(yearSelect.options).some((option) => option.value === yearValue)) {
+        const option = document.createElement("option");
+        option.value = yearValue;
+        option.textContent = yearValue;
+        yearSelect.append(option);
+      }
+
+      monthSelect.value = String(first.date.monthIndex);
+      yearSelect.value = yearValue;
+      villageSelect.value = villageOption.value;
+      monthSelect.classList.toggle("has-selection", true);
+      yearSelect.classList.toggle("has-selection", true);
+      villageSelect.classList.toggle("has-selection", true);
+      if (typeof updateReportPeriod === "function") updateReportPeriod();
+      if (typeof updateBabinsa === "function") updateBabinsa();
+      if (typeof updateSelectionStyles === "function") updateSelectionStyles();
+      if (typeof window.applyVillage === "function") window.applyVillage(villageOption.value);
+      if (typeof loadPhotosFromSelectedVillage === "function") loadPhotosFromSelectedVillage();
+
+      const dateLabel = `${String(first.date.day).padStart(2, "0")} ${monthNames[first.date.monthIndex]} ${first.date.year}`;
+      const info = `${records.length} data JSON dimuat untuk ${first.nama_desa}, ${dateLabel}. Foto laporan akan mengikuti desa dan periode tersebut.`;
+      if (photoStatus) photoStatus.textContent = info;
+      showJsonMessage("JSON berhasil dimuat", info);
+    } catch (error) {
+      showJsonMessage("File JSON tidak dapat dimuat", error.message || "Pastikan format JSON sesuai contoh.");
+    }
+  });
+});
