@@ -190,9 +190,9 @@ function showSelectionWarning(action) {
   if (!yearSelect.value) missingSelections.push("tahun");
   if (!villageSelect.value) missingSelections.push("desa/kelurahan");
 
-  document.querySelector("#selection-warning-title").textContent = "Lengkapi periode laporan";
+  document.querySelector("#selection-warning-title").textContent = "";
   document.querySelector("#selection-warning-message").textContent =
-    `Pilih ${missingSelections.join(", ")} terlebih dahulu sebelum ${action}.`;
+    `Pilih ${missingSelections.join(", ")} ${action}.`;
   selectionWarningDialog.showModal();
 }
 
