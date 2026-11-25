@@ -44,8 +44,6 @@
         });
       };
 
-      // Dropdown awal: pakai default KODE_DESA. Jika ZIP berisi JSON,
-      // script.js akan rebuild dropdown ini setelah ZIP dimuat.
       window.addEventListener("load", function () {
         const sel = document.getElementById("report-village");
         if (!sel) return;
@@ -101,9 +99,6 @@
       <button id="upload-budget-button" class="print-button" type="button">Unggah TXT Lampiran A</button>
       <button id="upload-photos-button" class="print-button" type="button">Unggah Foto Lampiran B</button>
 
-      <!-- ✅ Unggah ZIP all-in-one -->
-      <button id="upload-zip-button" class="print-button" type="button">Unggah ZIP Lengkap (JSON+TXT+PNG)</button>
-
       <button id="print-button" class="print-button" type="button">Cetak / Simpan PDF</button>
       <span id="photo-status" role="status">Foto dimuat otomatis sesuai pilihan laporan</span>
     </div>
@@ -136,10 +131,6 @@
     <input id="photo-files-input" type="file" accept="image/*,.zip,application/zip" multiple aria-label="Pilih foto atau arsip ZIP untuk dokumentasi foto" hidden />
     <input id="budget-text-input" type="file" accept=".txt,text/plain" aria-label="Pilih file TXT berisi tanggal dan uraian kegiatan" hidden />
 
-    <!-- ZIP all-in-one -->
-    <input id="all-in-one-zip-input" type="file" accept=".zip,application/zip" aria-label="Unggah ZIP lengkap berisi JSON, TXT, dan PNG" hidden />
-
-    <!-- ================= LAMPIRAN A (di atas) ================= -->
     <main class="document budget-document report-canvas" id="budget-document">
       <section class="page budget-page budget-page-one">
         <header class="budget-header">
@@ -203,7 +194,7 @@
           <div class="signature-block right-signature">
             <p>
               Sukasada, <span class="signature-date"></span><br />
-              Babinsa Koramil 1609-05/Sukasada</span>,
+              Babinsa Koramil 1609-05/Sukasada,
             </p>
             <div class="signature-space babinsa-signature-space" id="budget-babinsa-signature-space"></div>
             <strong class="babinsa-name"></strong>
@@ -213,7 +204,6 @@
       </section>
     </main>
 
-    <!-- ================= LAMPIRAN B (di bawah) ================= -->
     <main class="document report-canvas" id="photo-document">
       <section class="page page-one">
         <header class="document-header">
