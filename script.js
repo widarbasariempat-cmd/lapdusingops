@@ -259,9 +259,6 @@ function updateBabinsa() {
       signatureSpace.append(signature);
     }
     signature.alt = `Tanda tangan ${babinsa.name || "Babinsa"}`;
-    signature.classList.toggle("sukasada-signature", village === "Sukasada");
-    signature.classList.toggle("pegayaman-signature", village === "Pegayaman");
-    signature.classList.toggle("ambengan-signature", village === "Ambengan");
     setImageFromCandidates(signature, candidates);
   });
 }
