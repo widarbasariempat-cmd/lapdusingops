@@ -78,7 +78,7 @@
       });
       return output;
     } catch (error) {
-      throw new Error(`PNG "${name}" gagal diekstrak dari ZIP: ${error.message}`);
+      throw new Error(`File "${name}" gagal diekstrak dari ZIP: ${error.message}`);
     }
   }
 
@@ -133,15 +133,15 @@
 
       if (name.endsWith("/") || !/\.(?:png|jpe?g)$/i.test(name)) continue;
       if (flags & 0x0001) {
-        throw new Error(`File PNG "${name}" terenkripsi dan tidak dapat dibaca.`);
+        throw new Error(`File gambar "${name}" terenkripsi dan tidak dapat dibaca.`);
       }
       if (compressedSize === 0xffffffff || uncompressedSize === 0xffffffff || localHeaderOffset === 0xffffffff) {
-        throw new Error(`File PNG "${name}" memakai ZIP64 yang belum didukung.`);
+        throw new Error(`File gambar "${name}" memakai ZIP64 yang belum didukung.`);
       }
 
       expandedSize += uncompressedSize;
       if (expandedSize > maximumExpandedSize) {
-        throw new Error("Total ukuran PNG setelah diekstrak melebihi batas aman 150 MB.");
+        throw new Error("Total ukuran gambar setelah diekstrak melebihi batas aman 150 MB.");
       }
 
       if (localHeaderOffset + 30 > bytes.length || view.getUint32(localHeaderOffset, true) !== 0x04034b50) {
@@ -158,7 +158,7 @@
 
       const imageBytes = await decompress(method, bytes.subarray(dataStart, dataEnd), name, uncompressedSize);
       if (imageBytes.length !== uncompressedSize || crc32(imageBytes) !== checksum) {
-        throw new Error(`PNG "${name}" rusak atau tidak lolos pemeriksaan integritas.`);
+        throw new Error(`Gambar "${name}" rusak atau tidak lolos pemeriksaan integritas.`);
       }
       const isPng = /\.png$/i.test(name) &&
         pngSignature.every((byte, signatureIndex) => imageBytes[signatureIndex] === byte);
@@ -178,6 +178,67 @@
     return entries;
   }
 
+  async function readReportArchive(archive) {
+    const bytes = new Uint8Array(await archive.arrayBuffer());
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const directoryOffset = findEndOfCentralDirectory(view);
+    const diskNumber = view.getUint16(directoryOffset + 4, true);
+    const directoryDisk = view.getUint16(directoryOffset + 6, true);
+    const entriesOnDisk = view.getUint16(directoryOffset + 8, true);
+    const entryCount = view.getUint16(directoryOffset + 10, true);
+    const directorySize = view.getUint32(directoryOffset + 12, true);
+    const directoryStart = view.getUint32(directoryOffset + 16, true);
+
+    if (diskNumber !== 0 || directoryDisk !== 0 || entriesOnDisk !== entryCount) throw new Error("ZIP multi-disk tidak didukung.");
+    if (entryCount === 0xffff || directorySize === 0xffffffff || directoryStart === 0xffffffff) throw new Error("ZIP64 belum didukung.");
+    if (directoryStart + directorySize > directoryOffset) throw new Error("Indeks file pada ZIP berada di luar batas arsip.");
+
+    const report = { images: [], texts: [], json: [] };
+    let offset = directoryStart;
+    let expandedSize = 0;
+    for (let index = 0; index < entryCount; index++) {
+      if (offset + 46 > directoryStart + directorySize || view.getUint32(offset, true) !== 0x02014b50) throw new Error("Indeks file pada ZIP rusak.");
+      const flags = view.getUint16(offset + 8, true);
+      const method = view.getUint16(offset + 10, true);
+      const checksum = view.getUint32(offset + 16, true);
+      const compressedSize = view.getUint32(offset + 20, true);
+      const uncompressedSize = view.getUint32(offset + 24, true);
+      const nameLength = view.getUint16(offset + 28, true);
+      const extraLength = view.getUint16(offset + 30, true);
+      const commentLength = view.getUint16(offset + 32, true);
+      const localHeaderOffset = view.getUint32(offset + 42, true);
+      const entryEnd = offset + 46 + nameLength + extraLength + commentLength;
+      if (entryEnd > directoryStart + directorySize) throw new Error("Entri file pada ZIP terpotong.");
+      const name = decodeFileName(bytes.subarray(offset + 46, offset + 46 + nameLength), Boolean(flags & 0x0800));
+      offset = entryEnd;
+
+      const extension = name.split("/").pop().split(".").pop().toLowerCase();
+      if (name.endsWith("/") || !["png", "jpg", "jpeg", "txt", "json"].includes(extension)) continue;
+      if (flags & 0x0001) throw new Error(`File "${name}" terenkripsi dan tidak dapat dibaca.`);
+      if ([compressedSize, uncompressedSize, localHeaderOffset].includes(0xffffffff)) throw new Error(`File "${name}" memakai ZIP64 yang belum didukung.`);
+      expandedSize += uncompressedSize;
+      if (expandedSize > maximumExpandedSize) throw new Error("Total isi ZIP melebihi batas aman 150 MB.");
+      if (localHeaderOffset + 30 > bytes.length || view.getUint32(localHeaderOffset, true) !== 0x04034b50) throw new Error(`Header file "${name}" pada ZIP rusak.`);
+
+      const dataStart = localHeaderOffset + 30 + view.getUint16(localHeaderOffset + 26, true) + view.getUint16(localHeaderOffset + 28, true);
+      const dataEnd = dataStart + compressedSize;
+      if (dataEnd > directoryStart || dataEnd > bytes.length) throw new Error(`Isi file "${name}" pada ZIP terpotong.`);
+      const content = await decompress(method, bytes.subarray(dataStart, dataEnd), name, uncompressedSize);
+      if (content.length !== uncompressedSize || crc32(content) !== checksum) throw new Error(`File "${name}" rusak atau gagal pemeriksaan integritas.`);
+
+      const entry = { name: name.split("/").pop(), path: name };
+      if (extension === "txt") report.texts.push({ ...entry, text: new TextDecoder("utf-8").decode(content) });
+      else if (extension === "json") report.json.push({ ...entry, text: new TextDecoder("utf-8").decode(content) });
+      else {
+        const isPng = extension === "png" && pngSignature.every((byte, i) => content[i] === byte);
+        const isJpeg = ["jpg", "jpeg"].includes(extension) && jpegSignature.every((byte, i) => content[i] === byte);
+        if (!isPng && !isJpeg) throw new Error(`File "${name}" bukan gambar valid sesuai ekstensinya.`);
+        report.images.push({ ...entry, blob: new Blob([content], { type: isPng ? "image/png" : "image/jpeg" }) });
+      }
+    }
+    return report;
+  }
+
   function photoNumber(path) {
     const baseName = path.split("/").pop().replace(/\.(?:png|jpe?g|webp|gif|bmp|svg)$/i, "");
     const match = baseName.match(/^(?:foto|photo)[-_ ]?([1-9])$/i) || baseName.match(/^([1-9])$/);
@@ -189,26 +250,20 @@
     const monthPattern = monthNames.join("|").toLocaleLowerCase("id-ID");
     const namedDate = name.match(new RegExp(`(?:^|\\D)(\\d{1,2})\\s+(${monthPattern})\\s+(\\d{4})(?:\\D|$)`, "i"));
     if (namedDate) {
-      const monthIndex = monthNames.findIndex((month) =>
-        month.toLocaleLowerCase("id-ID") === namedDate[2]
-      );
+      const monthIndex = monthNames.findIndex((month) => month.toLocaleLowerCase("id-ID") === namedDate[2]);
       return validPhotoDate(Number(namedDate[3]), monthIndex + 1, Number(namedDate[1]));
     }
-
     const numericPatterns = [
-      /(?:^|\D)(\d{1,2})[-_. ](\d{1,2})[-_. ](\d{4})(?:\D|$)/,
-      /(?:^|\D)(\d{4})[-_. ](\d{1,2})[-_. ](\d{1,2})(?:\D|$)/,
-      /(?:^|\D)(\d{2})(\d{2})(\d{4})(?:\D|$)/,
-      /(?:^|\D)(\d{4})(\d{2})(\d{2})(?:\D|$)/
+      /(?:^|\\D)(\\d{1,2})[-_. ](\\d{1,2})[-_. ](\\d{4})(?:\\D|$)/,
+      /(?:^|\\D)(\\d{4})[-_. ](\\d{1,2})[-_. ](\\d{1,2})(?:\\D|$)/,
+      /(?:^|\\D)(\\d{2})(\\d{2})(\\d{4})(?:\\D|$)/,
+      /(?:^|\\D)(\\d{4})(\\d{2})(\\d{2})(?:\\D|$)/
     ];
-
     for (const [index, pattern] of numericPatterns.entries()) {
       const match = name.match(pattern);
       if (!match) continue;
       const [first, second, third] = match.slice(1).map(Number);
-      const [year, month, day] = index === 1 || index === 3
-        ? [first, second, third]
-        : [third, second, first];
+      const [year, month, day] = index === 1 || index === 3 ? [first, second, third] : [third, second, first];
       const date = validPhotoDate(year, month, day);
       if (date) return date;
     }
@@ -217,56 +272,35 @@
 
   function validPhotoDate(year, month, day) {
     const date = new Date(year, month - 1, day);
-    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
-      ? date
-      : null;
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
   }
 
   function mapPhotoEntries(entries, slotCount) {
-    const sortedEntries = [...entries].sort((first, second) =>
-      first.path.localeCompare(second.path, "id", { numeric: true, sensitivity: "base" })
-    );
+    const sortedEntries = [...entries].sort((first, second) => first.path.localeCompare(second.path, "id", { numeric: true, sensitivity: "base" }));
     const photosByNumber = new Map();
     const overflowEntries = [];
     const duplicateNumbers = new Set();
     const datedEntries = sortedEntries
       .map((entry) => ({ entry, date: dateFromPhotoFilename(entry.name || entry.path.split("/").pop()) }))
       .filter(({ date }) => date)
-      .sort((first, second) =>
-        first.date.getTime() - second.date.getTime() ||
-        first.entry.path.localeCompare(second.entry.path, "id", { numeric: true, sensitivity: "base" })
-      );
+      .sort((first, second) => first.date.getTime() - second.date.getTime() || first.entry.path.localeCompare(second.entry.path, "id", { numeric: true, sensitivity: "base" }));
 
-    datedEntries.slice(0, slotCount).forEach(({ entry }, index) => {
-      photosByNumber.set(index + 1, entry);
-    });
+    datedEntries.slice(0, slotCount).forEach(({ entry }, index) => photosByNumber.set(index + 1, entry));
     const datedEntrySet = new Set(datedEntries.map(({ entry }) => entry));
-
     sortedEntries.forEach((entry) => {
       if (datedEntrySet.has(entry)) return;
       const number = photoNumber(entry.path);
-      if (number === null) {
-        overflowEntries.push(entry);
-      } else if (photosByNumber.has(number)) {
-        duplicateNumbers.add(number);
-        overflowEntries.push(entry);
-      } else {
-        photosByNumber.set(number, entry);
-      }
+      if (number === null) overflowEntries.push(entry);
+      else if (photosByNumber.has(number)) { duplicateNumbers.add(number); overflowEntries.push(entry); }
+      else photosByNumber.set(number, entry);
     });
-
     let nextSlot = 1;
     overflowEntries.forEach((entry) => {
       while (photosByNumber.has(nextSlot) && nextSlot <= slotCount) nextSlot++;
       if (nextSlot <= slotCount) photosByNumber.set(nextSlot++, entry);
     });
-
-    return {
-      photosByNumber,
-      duplicateNumbers,
-      ignoredCount: Math.max(0, entries.length - photosByNumber.size)
-    };
+    return { photosByNumber, duplicateNumbers, ignoredCount: Math.max(0, entries.length - photosByNumber.size) };
   }
 
-  window.ZipImageReader = { readImageEntries, mapPhotoEntries, dateFromPhotoFilename };
+  window.ZipImageReader = { readImageEntries, readReportArchive, mapPhotoEntries, dateFromPhotoFilename };
 })();
