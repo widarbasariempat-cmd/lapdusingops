@@ -129,6 +129,21 @@
       </form>
     </dialog>
 
+    <!-- ===== DIALOG KAMERA (BARU) ===== -->
+    <dialog id="camera-dialog" class="camera-dialog" aria-labelledby="camera-title">
+      <form method="dialog">
+        <button class="dialog-close" type="submit" aria-label="Tutup">×</button>
+      </form>
+      <h2 id="camera-title">Kamera — Slot <span id="camera-slot-label">1</span></h2>
+      <div class="camera-frame">
+        <video id="camera-video" playsinline autoplay muted></video>
+      </div>
+      <div class="camera-actions">
+        <button type="button" id="camera-switch" class="print-button">Ganti Kamera</button>
+        <button type="button" id="camera-capture" class="print-button">Ambil Foto</button>
+      </div>
+    </dialog>
+
     <input id="local-folder-input" type="file" webkitdirectory directory multiple aria-label="Pilih folder yang berisi foto laporan" hidden />
     <input id="photo-files-input" type="file" accept="image/*,.zip,application/zip" multiple aria-label="Pilih foto atau arsip ZIP untuk dokumentasi foto" hidden />
     <input id="budget-text-input" type="file" accept=".txt,text/plain" aria-label="Pilih file TXT berisi tanggal dan uraian kegiatan" hidden />
@@ -272,6 +287,7 @@
     <script src="zip-reader.js"></script>
     <script src="script.js"></script>
     <script src="watermark.js"></script>
+    <script src="slot-tools.js"></script>
     <script>
       function triggerAttachmentUpload(type) {
         const selector = document.getElementById("report-type");
