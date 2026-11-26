@@ -1,16 +1,16 @@
 /* =====================================================================
- * photo-json.js  —  Modul caption foto dari gabungan.json
+ * photo-json.js  —  Modul MANDIRI upload JSON + caption foto
  * ---------------------------------------------------------------------
- * FUNGSI:
- *   - Menempel ke input JSON yang dibuat otomatis oleh report-data.js
- *   - Membaca gabungan.json → simpan metadata per-slot ke Map
- *   - Menempelkan caption di KIRI BAWAH tiap foto:
- *        koordinat / nama_desa / tanggal + waktu
- *   - Caption HANYA tampil di layar. Saat cetak, caption disembunyikan
- *     via CSS @media print → hasil cetak IDENTIK versi sebelumnya.
+ * Modul ini TIDAK bergantung pada report-data.js.
+ * Ia membuat sendiri:
+ *   - Tombol "Unggah JSON Kegiatan"
+ *   - Input file JSON (hidden)
+ *   - Validasi JSON
+ *   - Set filter bulan/tahun/desa
+ *   - Panggil loadPhotosFromSelectedVillage()
+ *   - Tempel caption ke kiri bawah tiap foto
  *
- * TIDAK MENGUBAH:
- *   script.js, zip-reader.js, watermark.js, report-data.js, HTML body.
+ * Caption HANYA tampil di layar. Saat cetak, disembunyikan via CSS.
  * ===================================================================== */
 (function () {
   "use strict";
@@ -20,7 +20,6 @@
     "Juli","Agustus","September","Oktober","November","Desember"
   ];
 
-  // Map global slot (1..9) → metadata
   window.photoMetadataByNumber = window.photoMetadataByNumber || new Map();
 
   // ---------- Util ----------
@@ -60,12 +59,11 @@
     console.log("[photo-json] " + map.size + " metadata tersimpan (slot 1.." + map.size + ")");
   }
 
-  // ---------- Tempel / hapus caption di slot ----------
+  // ---------- Caption ----------
   function applyCaptionToSlot(slot, number) {
     if (!slot) return;
     removeCaptionFromSlot(slot);
     if (!slot.classList.contains("has-image")) return;
-
     const meta = window.photoMetadataByNumber.get(number);
     if (!meta) return;
 
@@ -87,90 +85,199 @@
 
   function refreshAllCaptions() {
     const slots = document.querySelectorAll("#photo-document .photo-slot");
-    slots.forEach(function (slot, idx) {
-      applyCaptionToSlot(slot, idx + 1);
-    });
+    slots.forEach(function (slot, idx) { applyCaptionToSlot(slot, idx + 1); });
   }
 
-  // ---------- Amati perubahan class .photo-slot ----------
-  // Saat script.js menambahkan "has-image" → caption ditempel
-  // Saat "has-image" dihapus (ganti desa) → caption dibersihkan
+  // ---------- Observer ----------
   function watchSlots() {
     const slots = document.querySelectorAll("#photo-document .photo-slot");
     if (!slots.length) return;
-
     slots.forEach(function (slot, idx) {
       const number = idx + 1;
       const observer = new MutationObserver(function () {
         if (slot.classList.contains("has-image")) {
-          requestAnimationFrame(function () {
-            applyCaptionToSlot(slot, number);
-          });
+          requestAnimationFrame(function () { applyCaptionToSlot(slot, number); });
         } else {
           removeCaptionFromSlot(slot);
         }
       });
       observer.observe(slot, { attributes: true, attributeFilter: ["class"] });
     });
-
     refreshAllCaptions();
   }
 
-  // ---------- Temukan input JSON yang dibuat report-data.js ----------
-  function findJsonInput() {
-    const all = document.querySelectorAll('input[type="file"]');
-    for (let i = 0; i < all.length; i++) {
-      const el = all[i];
-      if (el.accept && el.accept.indexOf("json") !== -1) return el;
+  // ---------- Dialog pesan ----------
+  function showMessage(title, message) {
+    const dlg = document.getElementById("selection-warning-dialog");
+    const ttl = document.getElementById("selection-warning-title");
+    const msg = document.getElementById("selection-warning-message");
+    if (!dlg || !ttl || !msg) {
+      alert(title + "\n\n" + message);
+      return;
     }
-    return null;
+    ttl.textContent = title;
+    msg.textContent = message;
+    if (!dlg.open) dlg.showModal();
   }
 
-  function hookJsonInput() {
-    const input = findJsonInput();
-    if (!input) {
-      console.warn("[photo-json] Input JSON tidak ditemukan. Modul siap, tapi belum ada pemicu.");
+  // ---------- Proses JSON ----------
+  async function processJsonFile(file) {
+    try {
+      const text = (await file.text()).replace(/^\uFEFF/, "");
+      const records = JSON.parse(text);
+
+      if (!Array.isArray(records) || !records.length) {
+        throw new Error("File JSON harus berupa array berisi minimal 1 data.");
+      }
+
+      const normalized = records.map(function (r, i) {
+        if (!r || typeof r !== "object" || Array.isArray(r)) {
+          throw new Error("Data ke-" + (i + 1) + " bukan objek JSON.");
+        }
+        const date = parseIndoDate(r.tanggal);
+        if (!date) {
+          throw new Error("Data ke-" + (i + 1) + ": tanggal tidak valid (contoh: 05 November 2026).");
+        }
+        if (!r.nama_desa || !String(r.nama_desa).trim()) {
+          throw new Error("Data ke-" + (i + 1) + ": nama_desa kosong.");
+        }
+        if (!r.koordinat || !String(r.koordinat).trim()) {
+          throw new Error("Data ke-" + (i + 1) + ": koordinat kosong.");
+        }
+        if (!r.waktu || !String(r.waktu).trim()) {
+          throw new Error("Data ke-" + (i + 1) + ": waktu kosong.");
+        }
+        return {
+          koordinat: String(r.koordinat).trim(),
+          nama_desa: String(r.nama_desa).trim(),
+          tanggal:   String(r.tanggal).trim(),
+          waktu:     String(r.waktu).trim(),
+          _date:     date
+        };
+      });
+
+      // Semua record harus desa + bulan + tahun yang sama
+      const first = normalized[0];
+      const samePeriod = normalized.every(function (r) {
+        return r.nama_desa.toLocaleLowerCase("id-ID") === first.nama_desa.toLocaleLowerCase("id-ID") &&
+               r._date.monthIndex === first._date.monthIndex &&
+               r._date.year === first._date.year;
+      });
+      if (!samePeriod) {
+        throw new Error("Semua data dalam JSON harus memiliki desa, bulan, dan tahun yang sama.");
+      }
+
+      // Cari opsi desa
+      const villageSelect = document.getElementById("report-village");
+      const monthSelect   = document.getElementById("report-month");
+      const yearSelect    = document.getElementById("report-year");
+      const photoStatus   = document.getElementById("photo-status");
+
+      const villageOption = Array.from(villageSelect.options).find(function (opt) {
+        return opt.value.toLocaleLowerCase("id-ID") === first.nama_desa.toLocaleLowerCase("id-ID");
+      });
+      if (!villageOption) {
+        throw new Error("Desa '" + first.nama_desa + "' tidak ada di daftar laporan.");
+      }
+
+      // Tahun mungkin di luar rentang — tambahkan jika perlu
+      const yearValue = String(first._date.year);
+      if (!Array.from(yearSelect.options).some(function (o) { return o.value === yearValue; })) {
+        const opt = document.createElement("option");
+        opt.value = yearValue;
+        opt.textContent = yearValue;
+        yearSelect.appendChild(opt);
+      }
+
+      // Set filter
+      monthSelect.value = String(first._date.monthIndex);
+      yearSelect.value = yearValue;
+      villageSelect.value = villageOption.value;
+      monthSelect.classList.add("has-selection");
+      yearSelect.classList.add("has-selection");
+      villageSelect.classList.add("has-selection");
+
+      // Panggil fungsi global dari script.js (aman karena pakai typeof)
+      if (typeof window.updateReportPeriod === "function") window.updateReportPeriod();
+      else if (typeof updateReportPeriod === "function") updateReportPeriod();
+      if (typeof window.updateBabinsa === "function") window.updateBabinsa();
+      else if (typeof updateBabinsa === "function") updateBabinsa();
+      if (typeof window.updateSelectionStyles === "function") window.updateSelectionStyles();
+      else if (typeof updateSelectionStyles === "function") updateSelectionStyles();
+      if (typeof window.applyVillage === "function") window.applyVillage(villageOption.value);
+      if (typeof window.loadPhotosFromSelectedVillage === "function") window.loadPhotosFromSelectedVillage();
+      else if (typeof loadPhotosFromSelectedVillage === "function") loadPhotosFromSelectedVillage();
+
+      // Simpan metadata
+      storeMetadata(normalized);
+
+      const dateLabel = String(first._date.day).padStart(2, "0") + " " + MONTHS[first._date.monthIndex] + " " + first._date.year;
+      const info = normalized.length + " data JSON dimuat untuk " + first.nama_desa + ", " + dateLabel + ". Caption akan muncul di foto yang sudah terisi.";
+
+      if (photoStatus) photoStatus.textContent = info;
+      showMessage("JSON berhasil dimuat", info);
+
+      // Refresh caption setelah foto selesai dimuat
+      setTimeout(refreshAllCaptions, 300);
+      setTimeout(refreshAllCaptions, 900);
+      setTimeout(refreshAllCaptions, 1800);
+
+    } catch (err) {
+      showMessage("File JSON tidak dapat dimuat", err.message || "Format JSON tidak valid.");
+      console.error("[photo-json] Error:", err);
+    }
+  }
+
+  // ---------- Buat tombol + input JSON ----------
+  function createJsonButton() {
+    const controls = document.querySelector(".date-controls");
+    if (!controls) {
+      console.warn("[photo-json] .date-controls tidak ditemukan — tombol JSON tidak dibuat.");
       return;
     }
 
-    input.addEventListener("change", async function (ev) {
-      const file = ev.target.files && ev.target.files[0];
-      if (!file) return;
-      try {
-        const text = (await file.text()).replace(/^\uFEFF/, "");
-        const records = JSON.parse(text);
-        if (!Array.isArray(records) || !records.length) {
-          throw new Error("JSON harus berupa array berisi minimal 1 data.");
-        }
-        records.forEach(function (r, i) {
-          if (!parseIndoDate(r.tanggal)) {
-            throw new Error("Data ke-" + (i + 1) + ": tanggal tidak valid (contoh: 05 November 2026).");
-          }
-        });
-        storeMetadata(records);
+    // Cegah dobel
+    if (document.getElementById("photo-json-input")) return;
 
-        // report-data.js sudah menyetel filter & memanggil loadPhotos
-        setTimeout(refreshAllCaptions, 300);
-        setTimeout(refreshAllCaptions, 900);
-        setTimeout(refreshAllCaptions, 1800);
-      } catch (err) {
-        console.warn("[photo-json] Gagal baca JSON:", err.message);
-      }
+    const input = document.createElement("input");
+    input.type = "file";
+    input.id = "photo-json-input";
+    input.accept = ".json,application/json";
+    input.hidden = true;
+    input.setAttribute("aria-label", "Pilih file JSON metadata kegiatan");
+    controls.appendChild(input);
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = "upload-json-button";
+    button.className = "print-button";
+    button.textContent = "Unggah JSON Kegiatan";
+    button.setAttribute("aria-label", "Unggah file JSON untuk mengisi caption foto");
+    controls.appendChild(button);
+
+    button.addEventListener("click", function () {
+      input.value = "";
+      input.click();
     });
 
-    console.log("[photo-json] Menempel ke input JSON yang sudah ada.");
+    input.addEventListener("change", function (ev) {
+      const file = ev.target.files && ev.target.files[0];
+      if (file) processJsonFile(file);
+    });
+
+    console.log("[photo-json] Tombol 'Unggah JSON Kegiatan' dibuat.");
   }
 
   // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", function () {
     watchSlots();
-    hookJsonInput();
+    createJsonButton();
   });
 
-  // Expose untuk debugging manual
   window.PhotoJson = {
     storeMetadata: storeMetadata,
     refreshAllCaptions: refreshAllCaptions,
+    processJsonFile: processJsonFile,
     getMeta: function (n) { return window.photoMetadataByNumber.get(n); }
   };
 })();
