@@ -1,16 +1,9 @@
 /* =====================================================================
  * photo-json.js  —  Modul MANDIRI upload JSON + caption foto
- * ---------------------------------------------------------------------
- * Modul ini TIDAK bergantung pada report-data.js.
- * Ia membuat sendiri:
- *   - Tombol "Unggah JSON Kegiatan"
- *   - Input file JSON (hidden)
- *   - Validasi JSON
- *   - Set filter bulan/tahun/desa
- *   - Panggil loadPhotosFromSelectedVillage()
- *   - Tempel caption ke kiri bawah tiap foto
- *
- * Caption HANYA tampil di layar. Saat cetak, disembunyikan via CSS.
+ * Format caption (3 baris):
+ *   1. Babinsa {desa}
+ *   2. {koordinat}
+ *   3. {tanggal} {waktu}
  * ===================================================================== */
 (function () {
   "use strict";
@@ -22,7 +15,6 @@
 
   window.photoMetadataByNumber = window.photoMetadataByNumber || new Map();
 
-  // ---------- Util ----------
   function parseIndoDate(value) {
     if (typeof value !== "string") return null;
     const m = value.trim().match(/^(\d{1,2})\s+([\p{L}]+)\s+(\d{4})$/u);
@@ -42,7 +34,14 @@
     });
   }
 
-  // ---------- Simpan metadata ke Map ----------
+  function formatBabinsaLine(namaDesa) {
+    const v = String(namaDesa || "").trim();
+    if (!v) return "Babinsa";
+    return v.toLocaleLowerCase("id-ID") === "sukasada"
+      ? "Babinsa Kelurahan Sukasada"
+      : "Babinsa " + v;
+  }
+
   function storeMetadata(records) {
     const map = new Map();
     records.forEach(function (r, i) {
@@ -59,11 +58,11 @@
     console.log("[photo-json] " + map.size + " metadata tersimpan (slot 1.." + map.size + ")");
   }
 
-  // ---------- Caption ----------
   function applyCaptionToSlot(slot, number) {
     if (!slot) return;
     removeCaptionFromSlot(slot);
     if (!slot.classList.contains("has-image")) return;
+
     const meta = window.photoMetadataByNumber.get(number);
     if (!meta) return;
 
@@ -71,9 +70,9 @@
     cap.className = "photo-caption";
     cap.setAttribute("aria-hidden", "true");
     cap.innerHTML =
+      '<span class="cap-babinsa">'   + esc(formatBabinsaLine(meta.nama_desa)) + '</span>' +
       '<span class="cap-koordinat">' + esc(meta.koordinat) + '</span>' +
-      '<span class="cap-desa">'    + esc(meta.nama_desa) + '</span>' +
-      '<span class="cap-waktu">'   + esc(meta.tanggal) + ' ' + esc(meta.waktu) + '</span>';
+      '<span class="cap-waktu">'     + esc(meta.tanggal) + ' ' + esc(meta.waktu) + '</span>';
     slot.appendChild(cap);
   }
 
@@ -88,7 +87,6 @@
     slots.forEach(function (slot, idx) { applyCaptionToSlot(slot, idx + 1); });
   }
 
-  // ---------- Observer ----------
   function watchSlots() {
     const slots = document.querySelectorAll("#photo-document .photo-slot");
     if (!slots.length) return;
@@ -106,7 +104,6 @@
     refreshAllCaptions();
   }
 
-  // ---------- Dialog pesan ----------
   function showMessage(title, message) {
     const dlg = document.getElementById("selection-warning-dialog");
     const ttl = document.getElementById("selection-warning-title");
@@ -120,7 +117,6 @@
     if (!dlg.open) dlg.showModal();
   }
 
-  // ---------- Proses JSON ----------
   async function processJsonFile(file) {
     try {
       const text = (await file.text()).replace(/^\uFEFF/, "");
@@ -135,18 +131,10 @@
           throw new Error("Data ke-" + (i + 1) + " bukan objek JSON.");
         }
         const date = parseIndoDate(r.tanggal);
-        if (!date) {
-          throw new Error("Data ke-" + (i + 1) + ": tanggal tidak valid (contoh: 05 November 2026).");
-        }
-        if (!r.nama_desa || !String(r.nama_desa).trim()) {
-          throw new Error("Data ke-" + (i + 1) + ": nama_desa kosong.");
-        }
-        if (!r.koordinat || !String(r.koordinat).trim()) {
-          throw new Error("Data ke-" + (i + 1) + ": koordinat kosong.");
-        }
-        if (!r.waktu || !String(r.waktu).trim()) {
-          throw new Error("Data ke-" + (i + 1) + ": waktu kosong.");
-        }
+        if (!date) throw new Error("Data ke-" + (i + 1) + ": tanggal tidak valid (contoh: 05 November 2026).");
+        if (!r.nama_desa || !String(r.nama_desa).trim()) throw new Error("Data ke-" + (i + 1) + ": nama_desa kosong.");
+        if (!r.koordinat || !String(r.koordinat).trim()) throw new Error("Data ke-" + (i + 1) + ": koordinat kosong.");
+        if (!r.waktu || !String(r.waktu).trim()) throw new Error("Data ke-" + (i + 1) + ": waktu kosong.");
         return {
           koordinat: String(r.koordinat).trim(),
           nama_desa: String(r.nama_desa).trim(),
@@ -156,18 +144,14 @@
         };
       });
 
-      // Semua record harus desa + bulan + tahun yang sama
       const first = normalized[0];
       const samePeriod = normalized.every(function (r) {
         return r.nama_desa.toLocaleLowerCase("id-ID") === first.nama_desa.toLocaleLowerCase("id-ID") &&
                r._date.monthIndex === first._date.monthIndex &&
                r._date.year === first._date.year;
       });
-      if (!samePeriod) {
-        throw new Error("Semua data dalam JSON harus memiliki desa, bulan, dan tahun yang sama.");
-      }
+      if (!samePeriod) throw new Error("Semua data dalam JSON harus memiliki desa, bulan, dan tahun yang sama.");
 
-      // Cari opsi desa
       const villageSelect = document.getElementById("report-village");
       const monthSelect   = document.getElementById("report-month");
       const yearSelect    = document.getElementById("report-year");
@@ -176,11 +160,8 @@
       const villageOption = Array.from(villageSelect.options).find(function (opt) {
         return opt.value.toLocaleLowerCase("id-ID") === first.nama_desa.toLocaleLowerCase("id-ID");
       });
-      if (!villageOption) {
-        throw new Error("Desa '" + first.nama_desa + "' tidak ada di daftar laporan.");
-      }
+      if (!villageOption) throw new Error("Desa '" + first.nama_desa + "' tidak ada di daftar laporan.");
 
-      // Tahun mungkin di luar rentang — tambahkan jika perlu
       const yearValue = String(first._date.year);
       if (!Array.from(yearSelect.options).some(function (o) { return o.value === yearValue; })) {
         const opt = document.createElement("option");
@@ -189,7 +170,6 @@
         yearSelect.appendChild(opt);
       }
 
-      // Set filter
       monthSelect.value = String(first._date.monthIndex);
       yearSelect.value = yearValue;
       villageSelect.value = villageOption.value;
@@ -197,7 +177,6 @@
       yearSelect.classList.add("has-selection");
       villageSelect.classList.add("has-selection");
 
-      // Panggil fungsi global dari script.js (aman karena pakai typeof)
       if (typeof window.updateReportPeriod === "function") window.updateReportPeriod();
       else if (typeof updateReportPeriod === "function") updateReportPeriod();
       if (typeof window.updateBabinsa === "function") window.updateBabinsa();
@@ -208,16 +187,14 @@
       if (typeof window.loadPhotosFromSelectedVillage === "function") window.loadPhotosFromSelectedVillage();
       else if (typeof loadPhotosFromSelectedVillage === "function") loadPhotosFromSelectedVillage();
 
-      // Simpan metadata
       storeMetadata(normalized);
 
       const dateLabel = String(first._date.day).padStart(2, "0") + " " + MONTHS[first._date.monthIndex] + " " + first._date.year;
-      const info = normalized.length + " data JSON dimuat untuk " + first.nama_desa + ", " + dateLabel + ". Caption akan muncul di foto yang sudah terisi.";
+      const info = normalized.length + " data JSON dimuat untuk " + first.nama_desa + ", " + dateLabel + ". Caption akan muncul di foto dan ikut tercetak.";
 
       if (photoStatus) photoStatus.textContent = info;
       showMessage("JSON berhasil dimuat", info);
 
-      // Refresh caption setelah foto selesai dimuat
       setTimeout(refreshAllCaptions, 300);
       setTimeout(refreshAllCaptions, 900);
       setTimeout(refreshAllCaptions, 1800);
@@ -228,15 +205,9 @@
     }
   }
 
-  // ---------- Buat tombol + input JSON ----------
   function createJsonButton() {
     const controls = document.querySelector(".date-controls");
-    if (!controls) {
-      console.warn("[photo-json] .date-controls tidak ditemukan — tombol JSON tidak dibuat.");
-      return;
-    }
-
-    // Cegah dobel
+    if (!controls) return;
     if (document.getElementById("photo-json-input")) return;
 
     const input = document.createElement("input");
@@ -264,20 +235,10 @@
       const file = ev.target.files && ev.target.files[0];
       if (file) processJsonFile(file);
     });
-
-    console.log("[photo-json] Tombol 'Unggah JSON Kegiatan' dibuat.");
   }
 
-  // ---------- Init ----------
   document.addEventListener("DOMContentLoaded", function () {
     watchSlots();
     createJsonButton();
   });
-
-  window.PhotoJson = {
-    storeMetadata: storeMetadata,
-    refreshAllCaptions: refreshAllCaptions,
-    processJsonFile: processJsonFile,
-    getMeta: function (n) { return window.photoMetadataByNumber.get(n); }
-  };
 })();
