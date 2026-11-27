@@ -1,3 +1,37 @@
+/* ============ FONT FACE — LOAD ARIAL DARI FOLDER fonts/ ============ */
+@font-face {
+  font-family: 'ArialLocal';
+  src:
+    url('fonts/Arial.ttf') format('truetype'),
+    url('fonts/arial.ttf') format('truetype'),
+    url('fonts/Arial-Regular.ttf') format('truetype'),
+    url('fonts/arial.woff2') format('woff2'),
+    url('fonts/Arial.woff2') format('woff2'),
+    url('fonts/arial.woff') format('woff'),
+    url('fonts/Arial.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ArialLocal';
+  src:
+    url('fonts/Arial-Bold.ttf') format('truetype'),
+    url('fonts/arialbd.ttf') format('truetype'),
+    url('fonts/Arial-Bold.woff2') format('woff2'),
+    url('fonts/arialbd.woff2') format('woff2'),
+    url('fonts/Arial-Bold.woff') format('woff'),
+    url('fonts/arialbd.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-utama: 'ArialLocal', Arial, Helvetica, sans-serif;
+}
+
 @page {
   size: A4 landscape;
   margin: 12mm 15mm;
@@ -12,9 +46,10 @@ body {
   padding: 24px;
   background: #eeeae5;
   color: #181818;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-utama);
 }
 
+/* ============ TOOLBAR — Arial 12pt ============ */
 .print-button,
 .upload-button {
   position: relative;
@@ -27,7 +62,9 @@ body {
   background: #245c3b;
   color: #fff;
   cursor: pointer;
-  font: 700 14px Arial, Helvetica, sans-serif;
+  font-family: var(--font-utama);
+  font-size: 12pt;
+  font-weight: 700;
   box-shadow: 0 2px 8px #0002;
 }
 
@@ -35,8 +72,6 @@ body {
   border: 1px solid #245c3b;
   background: #fff;
   color: #19452b;
-  cursor: pointer;
-  font: 700 14px Arial, Helvetica, sans-serif;
 }
 
 .upload-button[hidden] {
@@ -71,17 +106,19 @@ body {
   border-radius: 6px;
   background: #fff;
   box-shadow: 0 2px 8px #0002;
-  font-size: 13px;
+  font-family: var(--font-utama);
+  font-size: 12pt;
 }
 
 .date-controls select {
-  max-width: 125px;
+  max-width: 160px;
   padding: 5px;
   border: 1px solid #bbb;
   border-radius: 4px;
   background: #fff;
   color: #181818;
-  font: inherit;
+  font-family: var(--font-utama);
+  font-size: 12pt;
 }
 
 .date-controls #report-type {
@@ -120,16 +157,12 @@ body {
   background: #245c3b;
   color: #fff;
   cursor: pointer;
-  font: 700 13px Arial, Helvetica, sans-serif;
+  font-family: var(--font-utama);
+  font-size: 12pt;
+  font-weight: 700;
 }
 
-.folder-picker:focus-within,
-.folder-picker:hover,
-.folder-picker:focus-visible {
-  background: #19452b;
-  outline: 2px solid #d8e5dc;
-}
-
+/* ============ DIALOG — Arial ============ */
 .photo-source-dialog {
   width: min(440px, calc(100vw - 32px));
   padding: 22px;
@@ -137,7 +170,7 @@ body {
   border-radius: 10px;
   color: #181818;
   box-shadow: 0 12px 40px #0005;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-utama);
 }
 
 .photo-source-dialog::backdrop {
@@ -146,13 +179,16 @@ body {
 
 .photo-source-dialog h2 {
   margin: 0 32px 8px 0;
-  font-size: 19px;
+  font-family: var(--font-utama);
+  font-size: 12pt;
+  font-weight: 700;
 }
 
 .photo-source-dialog p {
   margin: 0 0 16px;
   color: #444;
-  font-size: 14px;
+  font-family: var(--font-utama);
+  font-size: 12pt;
   line-height: 1.4;
 }
 
@@ -169,7 +205,8 @@ body {
   background: transparent;
   color: #333;
   cursor: pointer;
-  font-size: 24px;
+  font-family: var(--font-utama);
+  font-size: 12pt;
 }
 
 .photo-source-options {
@@ -184,7 +221,9 @@ body {
   background: #fff;
   color: #19452b;
   cursor: pointer;
-  font: 700 14px Arial, Helvetica, sans-serif;
+  font-family: var(--font-utama);
+  font-size: 12pt;
+  font-weight: 700;
   text-align: left;
 }
 
@@ -200,12 +239,6 @@ body {
   color: #fff;
 }
 
-.photo-source-options button[aria-pressed="true"]:hover,
-.photo-source-options button[aria-pressed="true"]:focus-visible {
-  background: #303b1f;
-  outline-color: #3b4726;
-}
-
 .warning-confirm {
   display: block;
   min-width: 100px;
@@ -216,24 +249,20 @@ body {
   background: #245c3b;
   color: #fff;
   cursor: pointer;
-  font: 700 14px Arial, Helvetica, sans-serif;
-}
-
-.warning-confirm:hover,
-.warning-confirm:focus-visible {
-  background: #19452b;
-  outline: 2px solid #d8e5dc;
-  outline-offset: 1px;
+  font-family: var(--font-utama);
+  font-size: 12pt;
+  font-weight: 700;
 }
 
 #photo-status {
   display: none;
 }
 
+/* ============ DOKUMEN ============ */
 .document {
   width: 297mm;
   margin: 0 auto;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-utama);
 }
 
 .page {
@@ -244,21 +273,23 @@ body {
   overflow: hidden;
   background: #fff;
   box-shadow: 0 3px 18px #0000001c;
-  font-size: 12pt;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-utama);
+  font-size: 12pt;        /* lowercase → 12pt */
 }
 
 .page + .page {
   margin-top: 22px;
 }
 
-.document-header {
+/* Unit heading — KAPITAL → 11pt */
+.document-header,
+.budget-header {
   display: grid;
   grid-template-columns: 1fr 1.18fr;
   align-items: stretch;
   gap: 22px;
   min-height: 49px;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-utama);
   font-size: 12pt;
   line-height: 1.2;
 }
@@ -272,37 +303,13 @@ body {
   align-self: end;
   padding-bottom: 1px;
   border-bottom: 1px solid #181818;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 11pt;
+  font-family: var(--font-utama);
+  font-size: 11pt;        /* KAPITAL → 11pt */
   text-align: center;
 }
 
-.attachment {
-  display: flex;
-  width: max-content;
-  max-width: 100%;
-  flex-direction: column;
-  justify-content: center;
-  align-self: end;
-  justify-self: end;
-  padding-bottom: 1px;
-  border-bottom: 1px solid #181818;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 10pt;
-  text-align: left;
-}
-
-.budget-header {
-  display: grid;
-  grid-template-columns: 1fr 1.18fr;
-  align-items: stretch;
-  gap: 22px;
-  min-height: 49px;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 12pt;
-  line-height: 1.2;
-}
-
+/* Attachment — campuran → 12pt (sebelumnya 10pt) */
+.attachment,
 .budget-attachment {
   display: flex;
   width: max-content;
@@ -313,35 +320,29 @@ body {
   justify-self: end;
   padding-bottom: 1px;
   border-bottom: 1px solid #181818;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 10pt;
+  font-family: var(--font-utama);
+  font-size: 12pt;        /* campuran → 12pt */
   text-align: left;
 }
 
-.report-title {
-  margin: 22px 0 25px;
-  text-align: center;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 11pt;
-  line-height: 1.3;
-  font-weight: 700;
-}
-
+/* Judul laporan — KAPITAL → 11pt */
+.report-title,
 .budget-title {
   margin: 22px 0 25px;
   text-align: center;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 11pt;
+  font-family: var(--font-utama);
+  font-size: 11pt;        /* KAPITAL → 11pt */
   line-height: 1.3;
   font-weight: 700;
 }
 
+/* Tabel */
 .budget-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 12pt;
+  font-family: var(--font-utama);
+  font-size: 12pt;        /* campuran → 12pt */
   line-height: 1.15;
 }
 
@@ -358,7 +359,8 @@ body {
 }
 
 .budget-table th {
-  font-size: 11pt;
+  font-family: var(--font-utama);
+  font-size: 11pt;        /* KAPITAL → 11pt */
   font-weight: 700;
   text-align: center;
   vertical-align: middle;
@@ -381,6 +383,8 @@ body {
 .budget-table tbody td {
   vertical-align: top;
   overflow-wrap: anywhere;
+  font-family: var(--font-utama);
+  font-size: 12pt;
 }
 
 .budget-table tbody td:nth-child(3) {
@@ -406,6 +410,7 @@ body {
   margin-top: 7mm;
 }
 
+/* ============ GRID FOTO ============ */
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -452,6 +457,7 @@ body {
   margin: 0;
   border-bottom: 1px solid #555;
   text-align: center;
+  font-family: var(--font-utama);
   font-size: 12pt;
   font-weight: 700;
   line-height: 18px;
@@ -493,17 +499,19 @@ body {
 .page-number {
   margin-top: 3mm;
   text-align: center;
+  font-family: var(--font-utama);
   font-size: 12pt;
   font-weight: 700;
 }
 
+/* ============ TANDA TANGAN ============ */
 .signatures {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
   gap: 24px;
   margin: 7mm 4px 0;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-utama);
   text-align: center;
   font-size: 12pt;
   line-height: 1.25;
@@ -532,7 +540,11 @@ body {
 }
 
 .signature-block.left-signature > p,
-.signature-block.right-signature > p {
+.signature-block.right-signature > p,
+.signature-block.left-signature > strong,
+.signature-block.right-signature > strong,
+.signature-block.left-signature > span,
+.signature-block.right-signature > span {
   position: relative;
   z-index: 1;
   width: 100%;
@@ -547,16 +559,6 @@ body {
   left: 0;
   width: 100%;
   height: 145px;
-}
-
-.signature-block.left-signature > strong,
-.signature-block.right-signature > strong,
-.signature-block.left-signature > span,
-.signature-block.right-signature > span {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  text-align: center;
 }
 
 .signature-block.left-signature > strong,
@@ -584,6 +586,7 @@ body {
   left: 10px;
   max-width: 80px;
   color: #777;
+  font-family: var(--font-utama);
   font-size: 12pt;
   line-height: 1.15;
 }
@@ -618,18 +621,6 @@ body {
   height: 78px;
 }
 
-.right-signature .sukasada-signature {
-  top: 64px;
-}
-
-.right-signature .pegayaman-signature {
-  left: calc(50% + 8px);
-}
-
-.right-signature .ambengan-signature {
-  top: 70px;
-}
-
 .commander-signature-image {
   left: calc(var(--stamp-left) + var(--stamp-size) - 18.7%);
   top: calc(50% - 9px);
@@ -661,6 +652,7 @@ img[hidden] {
   font-weight: 400;
 }
 
+/* ============ RESPONSIVE ============ */
 @media (max-width: 800px) {
   .date-controls {
     width: 100%;
@@ -673,6 +665,7 @@ img[hidden] {
   }
 }
 
+/* ============ PREVIEW FOTO ============ */
 .photo-preview {
   position: absolute;
   z-index: 0;
@@ -707,6 +700,7 @@ img[hidden] {
   background: #18231ddd;
   color: #fff;
   cursor: pointer;
+  font-family: var(--font-utama);
   font-size: 12pt;
   line-height: 1.2;
   text-align: center;
@@ -728,6 +722,7 @@ img[hidden] {
   outline: 2px solid #fff;
 }
 
+/* ============ CETAK ============ */
 @media print {
   .print-button,
   .upload-button,
@@ -781,31 +776,23 @@ img[hidden] {
     margin-top: 0;
   }
 
+  /* DEFAULT: semua teks 12pt */
   .document,
   .document * {
-    font-family: Arial, Helvetica, sans-serif !important;
+    font-family: var(--font-utama) !important;
     font-size: 12pt !important;
   }
 
+  /* KAPITAL → 11pt */
   .document .unit-heading,
   .document .report-title,
   .document .budget-title,
   .document .budget-table th {
-    font-family: Arial, Helvetica, sans-serif !important;
+    font-family: var(--font-utama) !important;
     font-size: 11pt !important;
   }
 
-  .document .attachment,
-  .document .attachment * {
-    font-family: Arial, Helvetica, sans-serif !important;
-    font-size: 10pt !important;
-  }
-
-  .document .budget-attachment,
-  .document .budget-attachment * {
-    font-family: Arial, Helvetica, sans-serif !important;
-    font-size: 10pt !important;
-  }
+  /* (Attachment ikut default 12pt — TIDAK ADA override 10pt lagi) */
 
   .budget-page-one .budget-header {
     min-height: 0;
@@ -835,63 +822,80 @@ img[hidden] {
   }
 }
 
-/* ===================== OVERLAY CAPTION FOTO (IKUT CETAK) ===================== */
+/* =====================================================================
+ * OVERLAY CAPTION FOTO — KANAN BAWAH, RATA KANAN, TANPA BACKGROUND
+ * Arial 12pt, selalu terlihat di atas gambar apapun (outline hitam)
+ * ===================================================================== */
 .photo-caption {
   position: absolute;
   z-index: 1;
-  left: 3px;
   right: 3px;
   bottom: 3px;
-  padding: 4px 6px;
+  max-width: 85%;
+  padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 1px;
   pointer-events: none;
-  color: #fff;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 9pt;
+  background: transparent;
+  font-family: var(--font-utama);
+  font-size: 12pt;
   line-height: 1.15;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
-  border-radius: 0 0 2px 2px;
+  color: #fff;
+  text-align: right;
+}
+
+/* Outline hitam di setiap span agar selalu terbaca di background apapun */
+.photo-caption span {
+  color: #fff;
+  -webkit-text-stroke: 0.4px #000;
+  paint-order: stroke fill;
+  text-shadow:
+    -1px -1px 0 #000,
+     0   -1px 0 #000,
+     1px -1px 0 #000,
+    -1px    0 0 #000,
+     1px    0 0 #000,
+    -1px  1px 0 #000,
+     0    1px 0 #000,
+     1px  1px 0 #000,
+     0 0 4px rgba(0, 0, 0, 0.85);
 }
 
 .photo-caption .cap-babinsa {
-  font-size: 9pt;
+  font-family: var(--font-utama);
+  font-size: 12pt;
   font-weight: 700;
 }
 
 .photo-caption .cap-koordinat {
-  font-size: 8pt;
-  opacity: 0.95;
+  font-family: var(--font-utama);
+  font-size: 12pt;
+  font-weight: 400;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .photo-caption .cap-waktu {
-  font-size: 8pt;
-  opacity: 0.95;
+  font-family: var(--font-utama);
+  font-size: 12pt;
+  font-weight: 400;
 }
 
+/* Caption ikut tercetak — tanpa background */
 @media print {
   #photo-document .photo-caption {
     display: flex !important;
-    padding: 2px 4px;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0));
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    background: transparent !important;
+    font-size: 12pt !important;
   }
 
-  #photo-document .photo-caption .cap-babinsa {
-    font-size: 8pt !important;
-    font-weight: 700 !important;
-    line-height: 1.1;
-  }
-
+  #photo-document .photo-caption .cap-babinsa,
   #photo-document .photo-caption .cap-koordinat,
   #photo-document .photo-caption .cap-waktu {
-    font-size: 7pt !important;
-    line-height: 1.1;
+    font-family: var(--font-utama) !important;
+    font-size: 12pt !important;
+    color: #fff !important;
   }
 }
