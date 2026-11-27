@@ -53,13 +53,13 @@
       });
     });
     window.photoMetadataByNumber = map;
-    console.log("[photo-json] " + map.size + " metadata tersimpan (slot 1.." + map.size + ")");
+    console.log("[photo-json] " + map.size + " metadata tersimpan (laci 1.." + map.size + ")");
   }
 
-  function applyCaptionToSlot(slot, number) {
-    if (!slot) return;
-    removeCaptionFromSlot(slot);
-    if (!slot.classList.contains("has-image")) return;
+  function applyCaptionTolaci(laci, number) {
+    if (!laci) return;
+    removeCaptionFromlaci(laci);
+    if (!laci.classList.contains("has-image")) return;
 
     const meta = window.photoMetadataByNumber.get(number);
     if (!meta) return;
@@ -71,33 +71,33 @@
       '<span class="cap-babinsa">'   + esc(formatBabinsaLine(meta.nama_desa)) + '</span>' +
       '<span class="cap-koordinat">' + esc(meta.koordinat) + '</span>' +
       '<span class="cap-waktu">'     + esc(meta.tanggal) + ' ' + esc(meta.waktu) + '</span>';
-    slot.appendChild(cap);
+    laci.appendChild(cap);
   }
 
-  function removeCaptionFromSlot(slot) {
-    if (!slot) return;
-    const old = slot.querySelectorAll(".photo-caption");
+  function removeCaptionFromlaci(laci) {
+    if (!laci) return;
+    const old = laci.querySelectorAll(".photo-caption");
     for (let i = 0; i < old.length; i++) old[i].remove();
   }
 
   function refreshAllCaptions() {
-    const slots = document.querySelectorAll("#photo-document .photo-slot");
-    slots.forEach(function (slot, idx) { applyCaptionToSlot(slot, idx + 1); });
+    const lacis = document.querySelectorAll("#photo-document .photo-laci");
+    lacis.forEach(function (laci, idx) { applyCaptionTolaci(laci, idx + 1); });
   }
 
-  function watchSlots() {
-    const slots = document.querySelectorAll("#photo-document .photo-slot");
-    if (!slots.length) return;
-    slots.forEach(function (slot, idx) {
+  function watchlacis() {
+    const lacis = document.querySelectorAll("#photo-document .photo-laci");
+    if (!lacis.length) return;
+    lacis.forEach(function (laci, idx) {
       const number = idx + 1;
       const observer = new MutationObserver(function () {
-        if (slot.classList.contains("has-image")) {
-          requestAnimationFrame(function () { applyCaptionToSlot(slot, number); });
+        if (laci.classList.contains("has-image")) {
+          requestAnimationFrame(function () { applyCaptionTolaci(laci, number); });
         } else {
-          removeCaptionFromSlot(slot);
+          removeCaptionFromlaci(laci);
         }
       });
-      observer.observe(slot, { attributes: true, attributeFilter: ["class"] });
+      observer.observe(laci, { attributes: true, attributeFilter: ["class"] });
     });
     refreshAllCaptions();
   }
@@ -191,7 +191,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    watchSlots();
+    watchlacis();
   });
 
   window.PhotoJson = {
