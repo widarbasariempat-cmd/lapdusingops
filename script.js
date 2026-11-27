@@ -7,7 +7,6 @@ const monthSelect = document.querySelector("#report-month");
 const yearSelect = document.querySelector("#report-year");
 const villageSelect = document.querySelector("#report-village");
 const reportTypeSelect = document.querySelector("#report-type");
-const reportTypePlaceholder = reportTypeSelect.querySelector('option[value=""]');
 const reportTypeOptions = {
   budget: reportTypeSelect.querySelector('option[value="budget"]'),
   photos: reportTypeSelect.querySelector('option[value="photos"]')
@@ -23,116 +22,203 @@ const reportDocument = document.querySelector(".document");
 const budgetDocument = document.querySelector("#budget-document");
 const yearControl = document.querySelector("#year-control");
 const villageControl = document.querySelector("#village-control");
-const localFolderInput = document.querySelector("#local-folder-input");
-const photoFilesInput = document.querySelector("#photo-files-input");
-const budgetTextInput = document.querySelector("#budget-text-input");
-const photoSourceDialog = document.querySelector("#photo-source-dialog");
 const selectionWarningDialog = document.querySelector("#selection-warning-dialog");
 const now = new Date();
 const currentYear = now.getFullYear();
-const imageExtensions = ["png", "jpg", "jpeg", "webp", "svg"];
 const signatureExtensions = ["png", "jpg", "jpeg", "webp"];
-let photoLoadVersion = 0;
-let zipLoadVersion = 0;
-let localFiles = new Map();
-let localFolderName = "";
-let zipPhotosByNumber = new Map();
-let photoSourceName = "";
-let zipPhotoMessage = "";
-let selectedPhotoSource = "";
+
+let slotData = []; // array 9 elemen: { photoBlob, meta, txtLine } | null
 let selectedReportType = "budget";
 
-/* ================= BUCKET MULTI-DESA ================= */
-const villageBuckets = new Map();
+/* ===== INIT 9 SLOT ZIP ===== */
+function initSlotInputs() {
+  slotData = Array.from({ length: 9 }, () => null);
+  photoSlots.forEach((slot, index) => {
+    const number = index + 1;
+    slot.innerHTML = "";
 
-function bucketKey(desa, monthIndex, year) {
-  return `${desa.toLowerCase()}|${monthIndex}|${year}`;
+    const preview = document.createElement("img");
+    preview.className = "photo-preview";
+    preview.alt = `Foto kegiatan ${number}`;
+    preview.hidden = true;
+    slot.append(preview);
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".zip,application/zip";
+    input.id = `slot-zip-input-${number}`;
+    input.className = "slot-zip-input";
+    input.setAttribute("aria-label", `Pilih ZIP kegiatan ${number}`);
+
+    const label = document.createElement("label");
+    label.htmlFor = input.id;
+    label.className = "slot-zip-label";
+    label.innerHTML = `<div class="slot-zip-icon">📁</div><div>Unggah ZIP</div><div style="font-size:9pt;opacity:.7">Slot ${number}</div>`;
+
+    const changeBtn = document.createElement("label");
+    changeBtn.htmlFor = input.id;
+    changeBtn.className = "slot-zip-change";
+    changeBtn.textContent = "Ganti ZIP";
+
+    slot.append(label, changeBtn, input);
+
+    input.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) handleSlotZip(index, file);
+      input.value = "";
+    });
+  });
 }
 
-function getOrCreateBucket(desa, monthIndex, year) {
-  const key = bucketKey(desa, monthIndex, year);
-  let b = villageBuckets.get(key);
-  if (!b) {
-    b = { desa, monthIndex, year, photos: [], budgetLines: [] };
-    villageBuckets.set(key, b);
+/* ===== BACA 1 ZIP → SLOT ===== */
+async function handleSlotZip(slotIndex, zipFile) {
+  const number = slotIndex + 1;
+  const slot = photoSlots[slotIndex];
+  const preview = slot.querySelector(".photo-preview");
+
+  try {
+    const archive = await window.ZipImageReader.readReportArchive(zipFile);
+
+    // 1. Gambar
+    const images = [...(archive.images || [])].sort((a, b) =>
+      a.path.localeCompare(b.path, "id", { numeric: true, sensitivity: "base" })
+    );
+    const firstImage = images[0];
+
+    // 2. JSON
+    let meta = null;
+    for (const j of (archive.json || [])) {
+      try {
+        const clean = String(j.text || "").replace(/^\uFEFF/, "");
+        const parsed = JSON.parse(clean);
+        if (Array.isArray(parsed) && parsed.length) {
+          const r = parsed[0];
+          meta = {
+            koordinat: String(r.koordinat || "").trim(),
+            nama_desa: String(r.nama_desa || "").trim(),
+            tanggal:   String(r.tanggal || "").trim(),
+            waktu:     String(r.waktu || "").trim()
+          };
+          break;
+        }
+      } catch {}
+    }
+
+    // 3. TXT
+    let txtLine = null;
+    for (const t of (archive.texts || [])) {
+      const clean = String(t.text || "").replace(/^\uFEFF/, "");
+      const firstLine = clean.split(/\r?\n/).find((l) => l.trim());
+      if (firstLine) {
+        const parts = firstLine.split("\t");
+        if (parts.length >= 2) {
+          txtLine = {
+            date: parts[0].trim(),
+            narrative: parts.slice(1).join("\t").trim()
+          };
+          break;
+        }
+      }
+    }
+
+    if (!firstImage) {
+      alert(`ZIP slot ${number} tidak memiliki gambar.`);
+      return;
+    }
+
+    // Preview
+    if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+    const url = URL.createObjectURL(firstImage.blob);
+    preview.dataset.objectUrl = url;
+    preview.src = url;
+    preview.hidden = false;
+    slot.classList.add("has-image");
+
+    // Simpan
+    slotData[slotIndex] = { photoBlob: firstImage.blob, meta, txtLine };
+
+    // Update Lampiran A
+    updateBudgetRow(slotIndex, txtLine);
+
+    // Set filter
+    if (meta) applyMetaToFilters(meta);
+
+    // Caption
+    if (typeof window.photoMetadataByNumber !== "undefined") {
+      if (meta) window.photoMetadataByNumber.set(number, meta);
+      else window.photoMetadataByNumber.delete(number);
+    }
+    if (typeof window.PhotoJson !== "undefined" && window.PhotoJson.refreshAllCaptions) {
+      setTimeout(() => window.PhotoJson.refreshAllCaptions(), 100);
+    }
+
+    updateStatusText();
+  } catch (err) {
+    alert(`ZIP slot ${number} gagal dibaca: ${err.message}`);
   }
-  return b;
 }
 
-function parseIndoDateStr(value) {
-  if (typeof value !== "string") return null;
-  const m = value.trim().match(/^(\d{1,2})\s+([\p{L}]+)\s+(\d{4})$/u);
-  if (!m) return null;
-  const mi = monthNames.findIndex((mo) =>
+function updateBudgetRow(slotIndex, txtLine) {
+  const allRows = Array.from(budgetDocument.querySelectorAll(".budget-table tbody tr"));
+  const row = allRows[slotIndex];
+  if (!row) return;
+  row.cells[1].textContent = txtLine?.date || "";
+  row.cells[2].textContent = txtLine?.narrative || "";
+}
+
+function applyMetaToFilters(meta) {
+  if (!meta.tanggal) return;
+  const m = meta.tanggal.trim().match(/^(\d{1,2})\s+([\p{L}]+)\s+(\d{4})$/u);
+  if (!m) return;
+  const monthIndex = monthNames.findIndex((mo) =>
     mo.toLocaleLowerCase("id-ID") === m[2].toLocaleLowerCase("id-ID")
   );
-  const day = Number(m[1]);
   const year = Number(m[3]);
-  if (mi < 0 || day < 1 || day > new Date(year, mi + 1, 0).getDate()) return null;
-  return { day, monthIndex: mi, year, date: new Date(year, mi, day) };
+  if (monthIndex < 0) return;
+
+  if (!monthSelect.value || monthSelect.value === "") monthSelect.value = String(monthIndex);
+  if (!yearSelect.value || yearSelect.value === "") yearSelect.value = String(year);
+  if (meta.nama_desa && (!villageSelect.value || villageSelect.value === "")) {
+    const option = Array.from(villageSelect.options).find((o) =>
+      o.value.toLocaleLowerCase("id-ID") === meta.nama_desa.toLocaleLowerCase("id-ID")
+    );
+    if (option) villageSelect.value = option.value;
+  }
+
+  updateSelectionStyles();
+  updateReportPeriod();
+  updateBabinsa();
+  if (typeof window.applyVillage === "function" && villageSelect.value) {
+    window.applyVillage(villageSelect.value);
+  }
 }
 
-/* ================= UTIL (existing) ================= */
+function updateStatusText() {
+  const filled = slotData.filter((s) => s && s.photoBlob).length;
+  if (photoStatus) photoStatus.textContent = `${filled}/9 slot terisi`;
+  updateReportTypeLabel("photos", filled, "foto");
+}
+
 function updateReportTypeLabel(type, successCount, resultName) {
+  if (!reportTypeOptions[type]) return;
   const resultLabel = `${reportTypeLabels[type]} (${successCount} ${resultName} berhasil)`;
   reportTypeOptions[type].textContent = resultLabel;
-  reportTypePlaceholder.textContent = resultLabel;
-}
-
-function resetReportTypeLabel(type) {
-  reportTypeOptions[type].textContent = reportTypeLabels[type];
-}
-
-function normalizeLocalPath(path) {
-  let decodedPath = path;
-  try {
-    decodedPath = decodeURIComponent(path);
-  } catch {
-    /* keep */
-  }
-  return decodedPath
-    .replace(/\\/g, "/")
-    .replace(/^\.?\//, "")
-    .toLocaleLowerCase("id-ID");
-}
-
-function findLocalFile(path) {
-  return localFiles.get(normalizeLocalPath(path));
-}
-
-function makeLocalObjectUrl(image, file) {
-  if (image.dataset.objectUrl) URL.revokeObjectURL(image.dataset.objectUrl);
-  const objectUrl = URL.createObjectURL(file);
-  image.dataset.objectUrl = objectUrl;
-  return objectUrl;
-}
-
-function getLocalImageCandidates(paths) {
-  return paths.map((path) => findLocalFile(path)).filter(Boolean);
 }
 
 function fitDocumentToViewport() {
   const bodyStyle = getComputedStyle(document.body);
-  const horizontalPadding =
-    Number.parseFloat(bodyStyle.paddingLeft) +
-    Number.parseFloat(bodyStyle.paddingRight);
+  const horizontalPadding = Number.parseFloat(bodyStyle.paddingLeft) + Number.parseFloat(bodyStyle.paddingRight);
   const availableWidth = Math.max(1, window.innerWidth - horizontalPadding);
   const pageWidth = 297 * 96 / 25.4;
   const zoom = String(Math.min(1, availableWidth / pageWidth));
-  document.querySelectorAll(".report-canvas").forEach((canvas) => {
-    canvas.style.zoom = zoom;
-  });
+  document.querySelectorAll(".report-canvas").forEach((canvas) => { canvas.style.zoom = zoom; });
 }
-
 window.addEventListener("resize", fitDocumentToViewport);
 fitDocumentToViewport();
 
-if (!window.reportData) {
-  throw new Error("Data laporan tidak ditemukan. Pastikan data/report-data.js tersedia.");
-}
+if (!window.reportData) throw new Error("Data laporan tidak ditemukan.");
 
-const villageNames = window.reportData.villageOrder ||
-  [...window.reportData.desaList, ...window.reportData.kelurahanList];
+const villageNames = window.reportData.villageOrder || [...window.reportData.desaList, ...window.reportData.kelurahanList];
 const villagePlaceholder = document.createElement("option");
 villagePlaceholder.value = "";
 villagePlaceholder.textContent = "-Pilih desa/kelurahan-";
@@ -146,66 +232,40 @@ villageNames.forEach((village) => {
   option.textContent = village;
   villageSelect.append(option);
 });
-
 monthNames.forEach((month, index) => {
   const option = document.createElement("option");
   option.value = index;
   option.textContent = month;
   monthSelect.append(option);
 });
-
 for (let year = currentYear - 5; year <= currentYear + 5; year++) {
   const option = document.createElement("option");
   option.value = year;
   option.textContent = year;
   yearSelect.append(option);
 }
-
 monthSelect.value = String(now.getMonth());
 yearSelect.value = String(currentYear);
 yearControl.hidden = false;
 villageControl.hidden = false;
 
 function updateReportPeriod() {
-  if (!monthSelect.value || !yearSelect.value) {
-    document.querySelector("#attachment-period").textContent = "";
-    document.querySelector("#title-period").textContent = "";
-    document.querySelector("#signature-date").textContent = "";
-    document.querySelectorAll(".budget-attachment-period, .budget-title-period, .signature-date")
-      .forEach((element) => { element.textContent = ""; });
-    return;
-  }
+  if (!monthSelect.value || !yearSelect.value) return;
   const monthIndex = Number(monthSelect.value);
   const year = Number(yearSelect.value);
   const month = monthNames[monthIndex];
   const quarter = quarterNames[Math.floor(monthIndex / 3)];
   const lastDay = new Date(year, monthIndex + 1, 0).getDate();
-  document.querySelector("#attachment-period").textContent =
-    `Bulan ${month} Triwulan ${quarter} TA ${year}`;
-  document.querySelector("#title-period").textContent =
-    `${month.toUpperCase()} TRIWULAN ${quarter} TA ${year}`;
+  document.querySelector("#attachment-period").textContent = `Bulan ${month} Triwulan ${quarter} TA ${year}`;
+  document.querySelector("#title-period").textContent = `${month.toUpperCase()} TRIWULAN ${quarter} TA ${year}`;
   document.querySelector("#signature-date").textContent = `${lastDay} ${month} ${year}`;
-  document.querySelectorAll(".budget-attachment-period")
-    .forEach((el) => { el.textContent = `${month} Triwulan ${quarter} TA ${year}`; });
-  document.querySelectorAll(".budget-title-period")
-    .forEach((el) => { el.textContent = `${month.toUpperCase()} TRIWULAN ${quarter} TA ${year}`; });
-  document.querySelectorAll(".signature-date")
-    .forEach((el) => { el.textContent = `${lastDay} ${month} ${year}`; });
-}
-
-function updateReportType(reportType = selectedReportType) {
-  selectedReportType = reportType;
-  const showBudgetReport = selectedReportType === "budget";
-  reportDocument.hidden = showBudgetReport;
-  budgetDocument.hidden = !showBudgetReport;
-  updateSelectionStyles();
+  document.querySelectorAll(".budget-attachment-period").forEach((el) => { el.textContent = `${month} Triwulan ${quarter} TA ${year}`; });
+  document.querySelectorAll(".budget-title-period").forEach((el) => { el.textContent = `${month.toUpperCase()} TRIWULAN ${quarter} TA ${year}`; });
+  document.querySelectorAll(".signature-date").forEach((el) => { el.textContent = `${lastDay} ${month} ${year}`; });
 }
 
 function updateSelectionStyles() {
-  [monthSelect, yearSelect, villageSelect].forEach((select) => {
-    select.classList.toggle("has-selection", Boolean(select.value));
-  });
-  reportTypeSelect.classList.toggle("has-selection", Boolean(reportTypeSelect.value));
+  [monthSelect, yearSelect, villageSelect].forEach((select) => { select.classList.toggle("has-selection", Boolean(select.value)); });
 }
 
 function hasReportSelection() {
@@ -213,49 +273,36 @@ function hasReportSelection() {
 }
 
 function showSelectionWarning(action) {
-  const missingSelections = [];
-  if (!monthSelect.value) missingSelections.push("bulan");
-  if (!yearSelect.value) missingSelections.push("tahun");
-  if (!villageSelect.value) missingSelections.push("desa/kelurahan");
+  const missing = [];
+  if (!monthSelect.value) missing.push("bulan");
+  if (!yearSelect.value) missing.push("tahun");
+  if (!villageSelect.value) missing.push("desa/kelurahan");
   document.querySelector("#selection-warning-title").textContent = "";
-  document.querySelector("#selection-warning-message").textContent =
-    `Pilih ${missingSelections.join(", ")} ${action}.`;
+  document.querySelector("#selection-warning-message").textContent = `Pilih ${missing.join(", ")} ${action}.`;
   selectionWarningDialog.showModal();
 }
 
 function updateVillageLabels(village) {
-  document.querySelectorAll(".signature-village").forEach((el) => {
-    el.textContent = village;
-  });
+  document.querySelectorAll(".signature-village").forEach((el) => { el.textContent = village; });
 }
 
 function setImageFromCandidates(image, candidates) {
   image.hidden = true;
   image.removeAttribute("src");
-  if (image.dataset.objectUrl) URL.revokeObjectURL(image.dataset.objectUrl);
-  delete image.dataset.objectUrl;
   const className = image.classList.contains("stamp-image") ? "has-stamp-image" : "has-signature-image";
   image.parentElement.classList.remove(className);
-  let candidateIndex = 0;
-  const tryNextCandidate = () => {
-    if (candidateIndex >= candidates.length) return;
-    const candidate = candidates[candidateIndex++];
-    const localFile = findLocalFile(candidate);
-    image.src = localFile ? makeLocalObjectUrl(image, localFile) : candidate;
-  };
-  image.onload = () => {
-    image.hidden = false;
-    image.parentElement.classList.add(className);
-  };
-  image.onerror = () => tryNextCandidate();
-  tryNextCandidate();
+  let i = 0;
+  const next = () => { if (i >= candidates.length) return; image.src = candidates[i++]; };
+  image.onload = () => { image.hidden = false; image.parentElement.classList.add(className); };
+  image.onerror = () => next();
+  next();
 }
 
 function imagePaths(folder, names) {
   const encodedFolder = folder.split("/").map(encodeURIComponent).join("/");
-  return names.flatMap((name) => signatureExtensions.map((extension) => {
+  return names.flatMap((name) => signatureExtensions.map((ext) => {
     const encodedName = name.split("/").map(encodeURIComponent);
-    encodedName[encodedName.length - 1] += `.${extension}`;
+    encodedName[encodedName.length - 1] += `.${ext}`;
     return `${encodedFolder}/${encodedName.join("/")}`;
   }));
 }
@@ -272,782 +319,77 @@ function updateBabinsa() {
     ...imagePaths(`data/tanda tangan/${village}`, [babinsa.nrp, `tanda tangan ${babinsa.nrp}`]),
     ...imagePaths("data/tanda tangan", [`${village}/${babinsa.nrp}`, `tanda tangan ${babinsa.nrp}`, babinsa.nrp])
   ] : [];
-  document.querySelectorAll(".babinsa-signature-space").forEach((signatureSpace) => {
-    let signature = signatureSpace.querySelector(".signature-image");
-    if (!signature) {
-      signature = document.createElement("img");
-      signature.className = "signature-image";
-      signature.hidden = true;
-      signatureSpace.append(signature);
+  document.querySelectorAll(".babinsa-signature-space").forEach((space) => {
+    let sig = space.querySelector(".signature-image");
+    if (!sig) {
+      sig = document.createElement("img");
+      sig.className = "signature-image";
+      sig.hidden = true;
+      space.append(sig);
     }
-    signature.alt = `Tanda tangan ${babinsa.name || "Babinsa"}`;
-    setImageFromCandidates(signature, candidates);
+    sig.alt = `Tanda tangan ${babinsa.name || "Babinsa"}`;
+    setImageFromCandidates(sig, candidates);
   });
 }
 
 function createBudgetRow(number) {
   const row = document.createElement("tr");
   const values = [
-    { text: `${number}.`, editable: false, label: `Nomor ${number}` },
-    { text: "", editable: true, label: `Hari dan tanggal kegiatan ${number}` },
-    { text: "", editable: true, label: `Uraian kegiatan ${number}` },
-    { text: "Rp. 100.000,-", editable: true, label: `Penggunaan dana kegiatan ${number}` },
-    { text: "Kegiatan berjalan dengan tertib, aman dan lancar.", editable: true, label: `Keterangan kegiatan ${number}` }
+    { text: `${number}.`, editable: false },
+    { text: "", editable: true },
+    { text: "", editable: true },
+    { text: "Rp. 100.000,-", editable: true },
+    { text: "Kegiatan berjalan dengan tertib, aman dan lancar.", editable: true }
   ];
-  values.forEach(({ text, editable, label }) => {
+  values.forEach(({ text, editable }) => {
     const cell = document.createElement("td");
     cell.textContent = text;
-    cell.setAttribute("aria-label", label);
-    if (editable) {
-      cell.contentEditable = "true";
-      cell.spellcheck = false;
-    }
+    if (editable) { cell.contentEditable = "true"; cell.spellcheck = false; }
     row.append(cell);
   });
   return row;
 }
-
 for (let number = 1; number <= 9; number++) {
-  const target = number <= 5
-    ? document.querySelector("#budget-rows-first")
-    : document.querySelector("#budget-rows-second");
+  const target = number <= 5 ? document.querySelector("#budget-rows-first") : document.querySelector("#budget-rows-second");
   target.append(createBudgetRow(number));
 }
 
-function parseBudgetText(text) {
-  const rows = [];
-  const invalidLines = [];
-  text.split(/\r?\n/).forEach((line, index) => {
-    if (!line.trim()) return;
-    const [date = "", ...narrativeParts] = line.split("\t");
-    const narrative = narrativeParts.join("\t").trim();
-    if (!date.trim() || !narrative) { invalidLines.push(index + 1); return; }
-    rows.push({ date: date.trim(), narrative });
-  });
-  if (invalidLines.length) {
-    throw new Error(`Format baris ${invalidLines.join(", ")} tidak valid.`);
-  }
-  if (!rows.length) throw new Error("File TXT tidak berisi baris tanggal dan narasi.");
-  if (rows.length > 9) throw new Error(`File berisi ${rows.length} kegiatan; maksimal 9.`);
-  return rows;
-}
-
-function showBudgetTextError(message) {
-  document.querySelector("#selection-warning-title").textContent = "File TXT tidak dapat dimuat";
-  document.querySelector("#selection-warning-message").textContent = message;
-  selectionWarningDialog.showModal();
-}
-
-function applyBudgetText(text) {
-  const rows = parseBudgetText(text);
-  const tableRows = Array.from(budgetDocument.querySelectorAll(".budget-table tbody tr"));
-  tableRows.forEach((row, index) => {
-    row.cells[1].textContent = rows[index]?.date || "";
-    row.cells[2].textContent = rows[index]?.narrative || "";
-  });
-  updateReportTypeLabel("budget", rows.length, "kegiatan");
-  return rows.length;
-}
-
-async function loadBudgetTextFile() {
-  const file = budgetTextInput.files && budgetTextInput.files[0];
-  if (!file) return;
-  if (!/\.txt$/i.test(file.name)) {
-    showBudgetTextError("Pilih file berformat .txt.");
-    return;
-  }
-  try {
-    applyBudgetText(await file.text());
-  } catch (error) {
-    showBudgetTextError(`TXT gagal dimuat: ${error.message}`);
-  }
-}
-
-function openReportFilePicker() { photoSourceDialog.showModal(); }
-function openBudgetTextPicker() { budgetTextInput.value = ""; budgetTextInput.click(); }
-
-function clearPhotoPreview(preview, slot) {
-  if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
-  delete preview.dataset.objectUrl;
-  preview.removeAttribute("src");
-  preview.hidden = true;
-  slot.classList.remove("has-image");
-}
-
-function photoPathCandidates(number) {
-  const folderParts = [
-    String(yearSelect.value),
-    monthNames[Number(monthSelect.value)],
-    villageSelect.value
-  ];
-  const names = [`foto-${number}`, `foto${number}`, String(number)];
-  const folders = [
-    ["LAPORAN BABINSA", ...folderParts],
-    folderParts,
-    ["Dukops Babinsa", ...folderParts],
-    folderParts.slice(1),
-    folderParts.slice(2)
-  ];
-  return names.flatMap((name) => imageExtensions.flatMap((extension) =>
-    folders.map((folder) => ({
-      path: `${folder.join("/")}/${name}.${extension}`,
-      url: `${folder.map(encodeURIComponent).join("/")}/${encodeURIComponent(`${name}.${extension}`)}`
-    }))
-  ));
-}
-
-function localPhotosForSelection() {
-  const expectedFolders = [
-    normalizeLocalPath(String(yearSelect.value)),
-    normalizeLocalPath(monthNames[Number(monthSelect.value)]),
-    normalizeLocalPath(villageSelect.value)
-  ];
-  const selectedVillageFolder = normalizeLocalPath(localFolderName) === expectedFolders[2];
-  const entries = [...new Set(localFiles.values())]
-    .filter((file) => imageExtensions.includes(file.name.split(".").pop().toLowerCase()))
-    .filter((file) => {
-      if (selectedVillageFolder) return true;
-      const path = normalizeLocalPath(file.webkitRelativePath || file.name).split("/");
-      return path.some((part, index) =>
-        expectedFolders.every((folder, folderIndex) => path[index + folderIndex] === folder)
-      );
-    })
-    .map((file) => ({
-      name: file.name,
-      path: file.webkitRelativePath || file.name,
-      blob: file
-    }));
-  return window.ZipImageReader.mapPhotoEntries(entries, photoSlots.length).photosByNumber;
-}
-
-function loadPhotosFromSelectedVillage() {
-  const version = ++photoLoadVersion;
-  let loadedCount = 0;
-  let completedCount = 0;
-  resetReportTypeLabel("photos");
-  if (!villageSelect.value) {
-    photoSlots.forEach((slot) => {
-      const preview = slot.querySelector(".photo-preview");
-      if (preview) clearPhotoPreview(preview, slot);
-    });
-    photoStatus.textContent = zipPhotoMessage || "Pilih desa/kelurahan untuk memuat foto.";
-    return;
-  }
-  photoStatus.textContent = `Memuat foto ${villageSelect.value}, ${monthNames[Number(monthSelect.value)]} ${yearSelect.value}…`;
-  const localPhotos = localPhotosForSelection();
-  photoSlots.forEach((slot, index) => {
-    const number = index + 1;
-    let preview = slot.querySelector(".photo-preview");
-    if (!preview) {
-      preview = document.createElement("img");
-      preview.className = "photo-preview";
-      preview.alt = `Foto kegiatan ${number}`;
-      preview.hidden = true;
-      slot.prepend(preview);
-    }
-    clearPhotoPreview(preview, slot);
-    const zipPhoto = zipPhotosByNumber.get(number);
-    const localPhoto = localPhotos.get(number);
-    const selectedPhoto = zipPhoto || localPhoto;
-    if (selectedPhoto) {
-      preview.onload = () => {
-        if (version !== photoLoadVersion) return;
-        preview.hidden = false;
-        slot.classList.add("has-image");
-        loadedCount++; completedCount++; updatePhotoStatus();
-      };
-      preview.onerror = () => {
-        if (version !== photoLoadVersion) return;
-        completedCount++;
-        zipPhotoMessage = `Gambar ${selectedPhoto.path} gagal ditampilkan.`;
-        updatePhotoStatus();
-      };
-      preview.src = makeLocalObjectUrl(preview, selectedPhoto.blob);
-      return;
-    }
-    const candidates = photoPathCandidates(number);
-    const localCandidates = getLocalImageCandidates(candidates.map((c) => c.path));
-    let li = 0, ri = 0;
-    const next = () => {
-      if (version !== photoLoadVersion) return;
-      if (li < localCandidates.length) { preview.src = makeLocalObjectUrl(preview, localCandidates[li++]); return; }
-      if (ri >= candidates.length) { completedCount++; updatePhotoStatus(); return; }
-      preview.src = candidates[ri++].url;
-    };
-    preview.onload = () => {
-      if (version !== photoLoadVersion) return;
-      preview.hidden = false;
-      slot.classList.add("has-image");
-      loadedCount++; completedCount++; updatePhotoStatus();
-    };
-    preview.onerror = () => next();
-    next();
-  });
-  function updatePhotoStatus() {
-    if (version !== photoLoadVersion || completedCount !== photoSlots.length) return;
-    const folderLabel = localFolderName ? ` (folder: ${localFolderName})` : "";
-    const sourceLabel = photoSourceName ? ` (sumber: ${photoSourceName})` : "";
-    const zipMsg = zipPhotoMessage ? ` ${zipPhotoMessage}` : "";
-    const details = loadedCount
-      ? `${loadedCount}/9 foto dimuat — ${villageSelect.value}, ${monthNames[Number(monthSelect.value)]} ${yearSelect.value}${folderLabel}${sourceLabel}.${zipMsg}`
-      : `Foto tidak ditemukan${localFolderName ? ` di folder ${localFolderName}` : ""}.${zipMsg}`;
-    photoStatus.textContent = details;
-    if (loadedCount > 0) updateReportTypeLabel("photos", loadedCount, "foto");
-  }
-}
-
-/* ================= ISI LAMPIRAN DARI BUCKET ================= */
-function fillLampiranA(bucket) {
-  const tableRows = Array.from(budgetDocument.querySelectorAll(".budget-table tbody tr"));
-  tableRows.forEach((row, index) => {
-    const line = bucket?.budgetLines[index];
-    row.cells[1].textContent = line?.date || "";
-    row.cells[2].textContent = line?.narrative || "";
-  });
-  if (bucket?.budgetLines.length) {
-    updateReportTypeLabel("budget", bucket.budgetLines.length, "kegiatan");
-  } else {
-    resetReportTypeLabel("budget");
-  }
-}
-
-function fillLampiranB(bucket) {
-  const version = ++photoLoadVersion;
-  let loadedCount = 0;
-  let completedCount = 0;
-  resetReportTypeLabel("photos");
-
-  photoSlots.forEach((slot, index) => {
-    const number = index + 1;
-    let preview = slot.querySelector(".photo-preview");
-    if (!preview) {
-      preview = document.createElement("img");
-      preview.className = "photo-preview";
-      preview.alt = `Foto kegiatan ${number}`;
-      preview.hidden = true;
-      slot.prepend(preview);
-    }
-    clearPhotoPreview(preview, slot);
-
-    const photo = bucket?.photos[index];
-    if (!photo || !photo.blob) {
-      if (photo?.meta) {
-        window.photoMetadataByNumber.set(number, {
-          koordinat: photo.meta.koordinat,
-          nama_desa: photo.meta.nama_desa,
-          tanggal:   photo.meta.tanggal,
-          waktu:     photo.meta.waktu
-        });
-      } else {
-        window.photoMetadataByNumber.delete(number);
-      }
-      completedCount++;
-      return;
-    }
-    if (photo.meta) {
-      window.photoMetadataByNumber.set(number, {
-        koordinat: photo.meta.koordinat,
-        nama_desa: photo.meta.nama_desa,
-        tanggal:   photo.meta.tanggal,
-        waktu:     photo.meta.waktu
-      });
-    } else {
-      window.photoMetadataByNumber.delete(number);
-    }
-    preview.onload = () => {
-      if (version !== photoLoadVersion) return;
-      preview.hidden = false;
-      slot.classList.add("has-image");
-      loadedCount++; completedCount++; updateStatus();
-    };
-    preview.onerror = () => {
-      if (version !== photoLoadVersion) return;
-      completedCount++; updateStatus();
-    };
-    preview.src = makeLocalObjectUrl(preview, photo.blob);
-  });
-
-  function updateStatus() {
-    if (version !== photoLoadVersion) return;
-    if (completedCount !== photoSlots.length) return;
-    const villageName = bucket?.desa || villageSelect.value || "-";
-    const monthLabel = bucket ? monthNames[bucket.monthIndex] : "-";
-    const yearLabel = bucket?.year || "-";
-    const allVillages = [...new Set([...villageBuckets.values()].map((b) => b.desa))];
-    const hint = allVillages.length > 1
-      ? ` (Tersedia ${allVillages.length} desa: ${allVillages.join(", ")} — ganti dropdown desa untuk melihat)`
-      : "";
-    if (loadedCount > 0) {
-      photoStatus.textContent = `${loadedCount}/9 foto dimuat — ${villageName}, ${monthLabel} ${yearLabel}.${hint}`;
-      updateReportTypeLabel("photos", loadedCount, "foto");
-    } else {
-      photoStatus.textContent = `Foto untuk ${villageName}, ${monthLabel} ${yearLabel} tidak tersedia.${hint}`;
-    }
-    if (typeof window.PhotoJson !== "undefined" && typeof window.PhotoJson.refreshAllCaptions === "function") {
-      setTimeout(() => window.PhotoJson.refreshAllCaptions(), 100);
-    }
-  }
-}
-
-function fillCurrentSelection() {
-  const m = monthSelect.value;
-  const y = yearSelect.value;
-  const d = villageSelect.value;
-  if (!m || !y || !d) {
-    fillLampiranA(null);
-    fillLampiranB(null);
-    return;
-  }
-  const key = bucketKey(d, Number(m), Number(y));
-  const bucket = villageBuckets.get(key);
-  if (bucket) {
-    fillLampiranA(bucket);
-    fillLampiranB(bucket);
-    return;
-  }
-  fillLampiranA(null);
-  if (zipPhotosByNumber.size > 0) {
-    loadPhotosFromSelectedVillage();
-  } else {
-    fillLampiranB(null);
-  }
-}
-
-function autoSelectFirstBucket() {
-  if (!villageBuckets.size) {
-    fillCurrentSelection();
-    return;
-  }
-  const entries = [...villageBuckets.values()].sort((a, b) => {
-    if (a.year !== b.year) return a.year - b.year;
-    if (a.monthIndex !== b.monthIndex) return a.monthIndex - b.monthIndex;
-    return a.desa.localeCompare(b.desa, "id");
-  });
-  const first = entries[0];
-
-  if (!Array.from(yearSelect.options).some((o) => o.value === String(first.year))) {
-    const o = document.createElement("option");
-    o.value = String(first.year);
-    o.textContent = String(first.year);
-    yearSelect.appendChild(o);
-  }
-  if (!Array.from(villageSelect.options).some((o) => o.value === first.desa)) {
-    const o = document.createElement("option");
-    o.value = first.desa;
-    o.textContent = first.desa;
-    villageSelect.appendChild(o);
-  }
-
-  monthSelect.value = String(first.monthIndex);
-  yearSelect.value = String(first.year);
-  villageSelect.value = first.desa;
-  updateReportPeriod();
-  updateBabinsa();
-  updateSelectionStyles();
-  if (typeof window.applyVillage === "function") window.applyVillage(first.desa);
-  fillCurrentSelection();
-}
-
-/* ================= PROSES ZIP KE BUCKET ================= */
-async function processOneZipForBucket(file) {
-  const warnings = [];
-  const zipName = file.webkitRelativePath || file.name;
-  let archive;
-  try {
-    archive = await window.ZipImageReader.readReportArchive(file);
-  } catch (e) {
-    warnings.push(`${zipName}: gagal dibaca (${e.message}).`);
-    return warnings;
-  }
-
-  let records = null;
-  for (const j of (archive.json || [])) {
-    try {
-      const clean = String(j.text || "").replace(/^\uFEFF/, "");
-      const parsed = JSON.parse(clean);
-      if (Array.isArray(parsed) && parsed.length) { records = parsed; break; }
-    } catch {
-      warnings.push(`${zipName}/${j.path}: JSON tidak valid.`);
-    }
-  }
-  if (!records) {
-    warnings.push(`${zipName}: tidak ada JSON, dilewati.`);
-    return warnings;
-  }
-
-  const normalized = [];
-  for (let i = 0; i < records.length; i++) {
-    const r = records[i] || {};
-    const d = parseIndoDateStr(r.tanggal);
-    if (!d) { warnings.push(`${zipName}: data ke-${i + 1} tanggal tidak valid.`); continue; }
-    if (!r.nama_desa) { warnings.push(`${zipName}: data ke-${i + 1} nama_desa kosong.`); continue; }
-    normalized.push({
-      koordinat: String(r.koordinat || "").trim(),
-      nama_desa: String(r.nama_desa).trim(),
-      tanggal:   String(r.tanggal).trim(),
-      waktu:     String(r.waktu || "").trim(),
-      sortDate:  d.date,
-      monthIndex: d.monthIndex,
-      year:       d.year
-    });
-  }
-  if (!normalized.length) {
-    warnings.push(`${zipName}: tidak ada data valid.`);
-    return warnings;
-  }
-
-  const primary = normalized[0];
-  const bucket = getOrCreateBucket(primary.nama_desa, primary.monthIndex, primary.year);
-
-  const sortedImages = [...(archive.images || [])].sort((a, b) =>
-    a.path.localeCompare(b.path, "id", { numeric: true, sensitivity: "base" })
-  );
-
-  const datedImages = sortedImages.map((img) => ({
-    img,
-    date: window.ZipImageReader.dateFromPhotoFilename(img.name || img.path)
-  }));
-  const allDated = datedImages.every((x) => x.date);
-
-  if (allDated && sortedImages.length > 0) {
-    datedImages.sort((a, b) => a.date - b.date);
-    const used = new Set();
-    datedImages.forEach((item) => {
-      const idx = normalized.findIndex((r, i) =>
-        !used.has(i) && r.sortDate.getTime() === item.date.getTime()
-      );
-      const meta = idx >= 0 ? normalized[idx] : null;
-      if (idx >= 0) used.add(idx);
-      bucket.photos.push({ blob: item.img.blob, path: `${zipName}/${item.img.path}`, meta });
-    });
-    normalized.forEach((r, i) => {
-      if (!used.has(i)) bucket.photos.push({ blob: null, path: null, meta: r });
-    });
-  } else {
-    sortedImages.forEach((img, i) => {
-      bucket.photos.push({
-        blob: img.blob,
-        path: `${zipName}/${img.path}`,
-        meta: normalized[i] || null
-      });
-    });
-    for (let i = sortedImages.length; i < normalized.length; i++) {
-      bucket.photos.push({ blob: null, path: null, meta: normalized[i] });
-    }
-  }
-
-  for (const t of (archive.texts || [])) {
-    const clean = String(t.text || "").replace(/^\uFEFF/, "");
-    clean.split(/\r?\n/).forEach((line) => {
-      if (!line.trim()) return;
-      const parts = line.split("\t");
-      if (parts.length < 2) return;
-      const dateStr = parts[0].trim();
-      const narrative = parts.slice(1).join("\t").trim();
-      const d = parseIndoDateStr(dateStr);
-      bucket.budgetLines.push({
-        date: dateStr,
-        narrative,
-        sortDate: d ? d.date : new Date(0)
-      });
-    });
-  }
-
-  return warnings;
-}
-
-function finalizeBuckets() {
-  for (const bucket of villageBuckets.values()) {
-    bucket.photos.sort((a, b) => {
-      const da = a.meta?.sortDate?.getTime() ?? Infinity;
-      const db = b.meta?.sortDate?.getTime() ?? Infinity;
-      if (da !== db) return da - db;
-      return (a.path || "").localeCompare(b.path || "", "id", { numeric: true });
-    });
-    bucket.photos = bucket.photos.slice(0, 9);
-
-    bucket.budgetLines.sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
-    const seen = new Set();
-    bucket.budgetLines = bucket.budgetLines.filter((line) => {
-      const k = `${line.date}|${line.narrative}`;
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-    bucket.budgetLines = bucket.budgetLines.slice(0, 9);
-  }
-}
-
-/* ================= LOAD ZIP (dipakai folder & upload ZIP langsung) ================= */
-async function loadZipFiles(files, zipName, version) {
-  zipPhotosByNumber = new Map();
-  photoSourceName = zipName;
-  zipPhotoMessage = "";
-
-  if (!files.length) {
-    villageBuckets.clear();
-    fillCurrentSelection();
-    return;
-  }
-
-  photoStatus.textContent = `Membaca ${files.length} arsip ZIP…`;
-  villageBuckets.clear();
-  const allWarnings = [];
-
-  for (const file of files) {
-    if (version !== zipLoadVersion) return;
-    const warnings = await processOneZipForBucket(file);
-    warnings.forEach((w) => allWarnings.push(w));
-  }
-
-  if (version !== zipLoadVersion) return;
-
-  finalizeBuckets();
-
-  if (villageBuckets.size === 0) {
-    photoStatus.textContent = `Tidak ada data yang bisa dibaca dari ZIP. ${allWarnings.slice(0, 3).join(" ")}`;
-    console.warn("[ZIP] peringatan:", allWarnings);
-    fillCurrentSelection();
-    return;
-  }
-
-  console.log(`[buckets] ${villageBuckets.size} kombinasi desa/periode:`);
-  for (const b of villageBuckets.values()) {
-    console.log(`  - ${b.desa} ${monthNames[b.monthIndex]} ${b.year}: ${b.photos.length} foto, ${b.budgetLines.length} TXT`);
-  }
-  if (allWarnings.length) console.warn("[ZIP] peringatan:", allWarnings);
-
-  autoSelectFirstBucket();
-}
-
-function loadSelectedImages() { void loadSelectedPhotoFiles(); }
-
-async function loadSelectedPhotoFiles() {
-  const files = Array.from(photoFilesInput.files || []);
-  const version = ++zipLoadVersion;
-  zipPhotosByNumber = new Map();
-  zipPhotoMessage = "";
-
-  if (!files.length) {
-    photoSourceName = "";
-    fillCurrentSelection();
-    return;
-  }
-
-  const photoFiles = files.filter((file) => file.type.startsWith("image/"));
-  const zipFiles = files.filter((file) => /\.zip$/i.test(file.name));
-  const unsupportedFiles = files.filter((file) =>
-    !file.type.startsWith("image/") && !/\.zip$/i.test(file.name)
-  );
-
-  if (zipFiles.length) {
-    photoSourceName = `${photoFiles.length} gambar + ${zipFiles.length} ZIP`;
-    await loadZipFiles(zipFiles, `${zipFiles.length} ZIP`, version);
-    return;
-  }
-
-  const totalSize = photoFiles.reduce((t, f) => t + f.size, 0);
-  if (totalSize > 150 * 1024 * 1024) {
-    photoSourceName = `${files.length} file`;
-    zipPhotoMessage = "Total ukuran gambar melebihi batas aman 150 MB.";
-    loadPhotosFromSelectedVillage();
-    return;
-  }
-
-  const entries = photoFiles.map((file) => ({
-    name: file.name,
-    path: file.webkitRelativePath || file.name,
-    blob: file
-  }));
-
-  if (version !== zipLoadVersion) return;
-  const { photosByNumber, duplicateNumbers, ignoredCount } =
-    window.ZipImageReader.mapPhotoEntries(entries, photoSlots.length);
-  zipPhotosByNumber = photosByNumber;
-  photoSourceName = `${photoFiles.length} gambar`;
-  const messages = [];
-  if (unsupportedFiles.length) messages.push(`${unsupportedFiles.length} file non-gambar/ZIP diabaikan.`);
-  if (duplicateNumbers.size) messages.push(`${duplicateNumbers.size} nomor foto duplikat dialihkan.`);
-  if (ignoredCount) messages.push(`${ignoredCount} foto tambahan diabaikan.`);
-  zipPhotoMessage = messages.join(" ");
-  loadPhotosFromSelectedVillage();
-}
-
-function loadSelectedLocalFolder() {
-  const files = Array.from(localFolderInput.files || []);
-  localFiles = new Map();
-  localFolderName = files[0]?.webkitRelativePath.split("/")[0] || "";
-
-  files.forEach((file) => {
-    const relativePath = file.webkitRelativePath || file.name;
-    const normalizedPath = normalizeLocalPath(relativePath);
-    localFiles.set(normalizedPath, file);
-    const pathParts = normalizedPath.split("/");
-    if (pathParts.length > 1) {
-      localFiles.set(pathParts.slice(1).join("/"), file);
-    }
-  });
-
-  photoFilesInput.value = "";
-  setImageFromCandidates(document.querySelector("#unit-stamp-image"), ["data/stempel/stempel.png"]);
-  setImageFromCandidates(document.querySelector("#budget-unit-stamp-image"), ["data/stempel/stempel.png"]);
-  setImageFromCandidates(document.querySelector("#commander-signature-image"), imagePaths("data/tanda tangan", [
-    "3910357550170", "Koramil/3910357550170"
-  ]));
-  setImageFromCandidates(document.querySelector("#budget-commander-signature-image"), imagePaths("data/tanda tangan", [
-    "3910357550170", "Koramil/3910357550170"
-  ]));
-  updateBabinsa();
-
-  const zipFiles = files.filter((file) => /\.zip$/i.test(file.name));
-  const version = ++zipLoadVersion;
-  const zipName = zipFiles.length
-    ? `${zipFiles.length} ZIP dari folder "${localFolderName}"`
-    : "";
-  if (!zipFiles.length) {
-    zipPhotosByNumber = new Map();
-    photoSourceName = "";
-    zipPhotoMessage = "";
-    photoStatus.textContent = files.length
-      ? `Folder "${localFolderName}" dimuat (${files.length} file). Tidak ada ZIP di dalamnya.`
-      : "Folder belum dipilih.";
-  }
-  void loadZipFiles(zipFiles, zipName, version);
-}
-
-/* ================= SLOT MANUAL ================= */
-photoSlots.forEach((slot, index) => {
-  const number = index + 1;
-  const preview = document.createElement("img");
-  const input = document.createElement("input");
-  const label = document.createElement("label");
-
-  preview.className = "photo-preview";
-  preview.alt = `Foto kegiatan ${number}`;
-  preview.hidden = true;
-  input.className = "image-input";
-  input.type = "file";
-  input.accept = "image/*";
-  input.id = `photo-input-${number}`;
-  input.setAttribute("aria-label", `Pilih foto kegiatan ${number}`);
-  label.className = "image-picker";
-  label.htmlFor = input.id;
-  label.textContent = "Pilih / ganti foto";
-  slot.append(preview, input, label);
-
-  input.addEventListener("change", () => {
-    const file = input.files && input.files[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    clearPhotoPreview(preview, slot);
-    const objectUrl = URL.createObjectURL(file);
-    preview.dataset.objectUrl = objectUrl;
-    preview.onload = () => {
-      preview.hidden = false;
-      slot.classList.add("has-image");
-      const loadedCount = photoSlots.filter((s) => s.classList.contains("has-image")).length;
-      if (loadedCount > 0) updateReportTypeLabel("photos", loadedCount, "foto");
-    };
-    preview.src = objectUrl;
-  });
-});
+initSlotInputs();
 
 setImageFromCandidates(document.querySelector("#unit-stamp-image"), ["data/stempel/stempel.png"]);
 setImageFromCandidates(document.querySelector("#budget-unit-stamp-image"), ["data/stempel/stempel.png"]);
-setImageFromCandidates(document.querySelector("#commander-signature-image"), imagePaths("data/tanda tangan", [
-  "3910357550170", "Koramil/3910357550170"
-]));
-setImageFromCandidates(document.querySelector("#budget-commander-signature-image"), imagePaths("data/tanda tangan", [
-  "3910357550170", "Koramil/3910357550170"
-]));
-localFolderInput.addEventListener("change", loadSelectedLocalFolder);
-photoFilesInput.addEventListener("change", loadSelectedImages);
-budgetTextInput.addEventListener("change", () => { void loadBudgetTextFile(); });
+setImageFromCandidates(document.querySelector("#commander-signature-image"), imagePaths("data/tanda tangan", ["3910357550170", "Koramil/3910357550170"]));
+setImageFromCandidates(document.querySelector("#budget-commander-signature-image"), imagePaths("data/tanda tangan", ["3910357550170", "Koramil/3910357550170"]));
 
-monthSelect.addEventListener("change", () => {
-  villageSelect.value = "";
-  villageControl.hidden = !yearSelect.value;
-  updateSelectionStyles();
-  updateReportPeriod();
-  updateBabinsa();
-  fillCurrentSelection();
-});
-yearSelect.addEventListener("change", () => {
-  villageSelect.value = "";
-  villageControl.hidden = !yearSelect.value;
-  updateSelectionStyles();
-  updateReportPeriod();
-  updateBabinsa();
-  fillCurrentSelection();
-});
+monthSelect.addEventListener("change", () => { updateSelectionStyles(); updateReportPeriod(); });
+yearSelect.addEventListener("change", () => { updateSelectionStyles(); updateReportPeriod(); });
 villageSelect.addEventListener("change", () => {
-  if (!monthSelect.value || !yearSelect.value) {
-    villageSelect.value = "";
-    showSelectionWarning("memilih wilayah dan memuat foto");
-    return;
-  }
   updateBabinsa();
   updateSelectionStyles();
   if (typeof window.applyVillage === "function") window.applyVillage(villageSelect.value);
-  fillCurrentSelection();
 });
 
 let originalDocumentTitle = document.title;
-reportTypeSelect.addEventListener("change", () => {
-  const reportType = reportTypeSelect.value;
-  if (!reportType) return;
-  updateReportType(reportType);
-  if (!hasReportSelection()) {
-    showSelectionWarning("mengunggah berkas");
-    reportTypeSelect.value = "";
-    updateSelectionStyles();
-    return;
-  }
-  reportTypeSelect.value = "";
-  updateSelectionStyles();
-  if (reportType === "budget") openBudgetTextPicker();
-  else openReportFilePicker();
-});
-photoSourceDialog.querySelectorAll("[data-photo-source]").forEach((button) => {
-  button.setAttribute("aria-pressed", "false");
-  button.addEventListener("click", () => {
-    const source = button.dataset.photoSource;
-    selectedPhotoSource = source;
-    photoSourceDialog.querySelectorAll("[data-photo-source]").forEach((b) => {
-      b.setAttribute("aria-pressed", String(b.dataset.photoSource === selectedPhotoSource));
-    });
-    photoSourceDialog.close();
-    if (source === "folder") {
-      localFolderInput.value = "";
-      localFolderInput.click();
-      return;
-    }
-    photoFilesInput.value = "";
-    photoFilesInput.accept = source === "zip"
-      ? ".zip,application/zip"
-      : "image/*";
-    photoFilesInput.click();
+if (printButton) {
+  printButton.addEventListener("click", () => {
+    if (!hasReportSelection()) { showSelectionWarning("mencetak laporan"); return; }
+    const safeVillageName = villageSelect.value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-");
+    const villageNumber = window.reportData.villageReportNumberByVillage[villageSelect.value];
+    originalDocumentTitle = document.title;
+    document.title = `${villageNumber}. A-B ${safeVillageName} ${monthNames[Number(monthSelect.value)].toLocaleLowerCase("id-ID")} ${yearSelect.value}`;
+    document.body.classList.remove("printing-a", "printing-b", "printing-both");
+    document.body.classList.add("printing-both");
+    document.body.insertBefore(budgetDocument, reportDocument);
+    window.print();
   });
-});
-printButton.addEventListener("click", () => {
-  if (!hasReportSelection()) { showSelectionWarning("mencetak laporan"); return; }
-  const safeVillageName = villageSelect.value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-");
-  const villageNumber = window.reportData.villageReportNumberByVillage[villageSelect.value];
-  originalDocumentTitle = document.title;
-  document.title =
-    `${villageNumber}. A-B ${safeVillageName} ${monthNames[Number(monthSelect.value)].toLocaleLowerCase("id-ID")} ${yearSelect.value}`;
-  document.body.classList.remove("printing-a", "printing-b", "printing-both");
-  document.body.classList.add("printing-both");
-  document.body.insertBefore(budgetDocument, reportDocument);
-  window.print();
-});
+}
 
-updateSelectionStyles();
 window.addEventListener("afterprint", () => {
   document.title = originalDocumentTitle;
   document.body.classList.remove("printing-a", "printing-b", "printing-both");
   document.body.insertBefore(reportDocument, budgetDocument);
 });
 
+updateSelectionStyles();
 updateReportPeriod();
 updateBabinsa();
-updateReportType();
