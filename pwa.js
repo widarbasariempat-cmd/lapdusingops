@@ -103,6 +103,9 @@
       controls.append(button);
     }
     button.textContent = label;
+    // These controls are intentionally kept hidden; service worker install and
+    // update checks continue to run in the background.
+    button.hidden = true;
     return button;
   }
 
@@ -115,7 +118,7 @@
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     installPrompt = event;
-    installButton.hidden = false;
+    installButton.hidden = true;
   });
   window.addEventListener("appinstalled", () => {
     installPrompt = null;
@@ -133,7 +136,7 @@
   });
 
   function showUpdateIfWaiting() {
-    updateButton.hidden = !(registration?.waiting && navigator.serviceWorker.controller);
+    updateButton.hidden = true;
   }
 
   updateButton.addEventListener("click", () => {
