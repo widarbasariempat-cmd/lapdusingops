@@ -105,16 +105,17 @@
       <span id="photo-status" role="status">Foto dimuat otomatis sesuai pilihan laporan</span>
     </div>
 
+    <!-- DIALOG SUMBER FOTO -->
     <dialog id="photo-source-dialog" class="photo-source-dialog" aria-labelledby="photo-source-title">
       <form method="dialog">
         <button class="dialog-close" type="submit" aria-label="Tutup">×</button>
       </form>
-      <h2 id="photo-source-title">Pilih sumber foto</h2>
-      <p>Pilih folder, satu atau beberapa ZIP, atau beberapa file gambar.</p>
+      <h2 id="photo-source-title">Pilih Sumber Data</h2>
+      <p>Pilih folder yang berisi beberapa file ZIP. Setiap ZIP di dalamnya berisi file gambar, file JSON (koordinat/tanggal/waktu), dan file TXT (narasinya). Sistem akan membaca semuanya secara otomatis.</p>
       <div class="photo-source-options">
-        <button type="button" data-photo-source="folder">Folder proyek (termasuk ZIP)</button>
-        <button type="button" data-photo-source="zip">Satu atau beberapa file ZIP</button>
-        <button type="button" data-photo-source="images">Satu atau beberapa file gambar</button>
+        <button type="button" data-photo-source="folder">Folder (berisi banyak ZIP)</button>
+        <button type="button" data-photo-source="zip">Pilih File ZIP Langsung</button>
+        <button type="button" data-photo-source="images">Pilih File Gambar</button>
       </div>
     </dialog>
 
@@ -129,7 +130,7 @@
       </form>
     </dialog>
 
-    <!-- ===== DIALOG KAMERA ===== -->
+    <!-- DIALOG KAMERA -->
     <dialog id="camera-dialog" class="camera-dialog" aria-labelledby="camera-title">
       <form method="dialog">
         <button class="dialog-close" type="submit" aria-label="Tutup">×</button>
@@ -148,6 +149,7 @@
     <input id="photo-files-input" type="file" accept="image/*,.zip,application/zip" multiple aria-label="Pilih foto atau arsip ZIP untuk dokumentasi foto" hidden />
     <input id="budget-text-input" type="file" accept=".txt,text/plain" aria-label="Pilih file TXT berisi tanggal dan uraian kegiatan" hidden />
 
+    <!-- LAMPIRAN A -->
     <main class="document budget-document report-canvas" id="budget-document">
       <section class="page budget-page budget-page-one">
         <header class="budget-header">
@@ -218,6 +220,7 @@
       </section>
     </main>
 
+    <!-- LAMPIRAN B -->
     <main class="document report-canvas" id="photo-document">
       <section class="page page-one">
         <header class="document-header">
@@ -283,6 +286,7 @@
       </section>
     </main>
 
+    <!-- SCRIPT -->
     <script src="data/report-data.js"></script>
     <script src="zip-reader.js"></script>
     <script src="script.js"></script>
