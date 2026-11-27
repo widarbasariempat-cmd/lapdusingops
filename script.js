@@ -17,7 +17,7 @@ const reportTypeLabels = {
 };
 const printButton = document.querySelector("#print-button");
 const photoStatus = document.querySelector("#photo-status");
-const photolacis = Array.from(document.querySelectorAll(".photo-laci"));
+const photoSlots = Array.from(document.querySelectorAll(".photo-slot"));
 const reportDocument = document.querySelector(".document");
 const budgetDocument = document.querySelector("#budget-document");
 const yearControl = document.querySelector("#year-control");
@@ -27,54 +27,54 @@ const now = new Date();
 const currentYear = now.getFullYear();
 const signatureExtensions = ["png", "jpg", "jpeg", "webp"];
 
-let laciData = []; // array 9 elemen: { photoBlob, meta, txtLine } | null
+let slotData = []; // array 9 elemen: { photoBlob, meta, txtLine } | null
 let selectedReportType = "budget";
 
-/* ===== INIT 9 laci ZIP ===== */
-function initlaciInputs() {
-  laciData = Array.from({ length: 9 }, () => null);
-  photolacis.forEach((laci, index) => {
+/* ===== INIT 9 SLOT ZIP ===== */
+function initSlotInputs() {
+  slotData = Array.from({ length: 9 }, () => null);
+  photoSlots.forEach((slot, index) => {
     const number = index + 1;
-    laci.innerHTML = "";
+    slot.innerHTML = "";
 
     const preview = document.createElement("img");
     preview.className = "photo-preview";
     preview.alt = `Foto kegiatan ${number}`;
     preview.hidden = true;
-    laci.append(preview);
+    slot.append(preview);
 
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".zip,application/zip";
-    input.id = `laci-zip-input-${number}`;
-    input.className = "laci-zip-input";
+    input.id = `slot-zip-input-${number}`;
+    input.className = "slot-zip-input";
     input.setAttribute("aria-label", `Pilih ZIP kegiatan ${number}`);
 
     const label = document.createElement("label");
     label.htmlFor = input.id;
-    label.className = "laci-zip-label";
-    label.innerHTML = `<div class="laci-zip-icon">📁</div><div>Unggah ZIP</div><div style="font-size:9pt;opacity:.7">laci ${number}</div>`;
+    label.className = "slot-zip-label";
+    label.innerHTML = `<div class="slot-zip-icon">📁</div><div>Unggah ZIP</div><div style="font-size:9pt;opacity:.7">Slot ${number}</div>`;
 
     const changeBtn = document.createElement("label");
     changeBtn.htmlFor = input.id;
-    changeBtn.className = "laci-zip-change";
+    changeBtn.className = "slot-zip-change";
     changeBtn.textContent = "Ganti ZIP";
 
-    laci.append(label, changeBtn, input);
+    slot.append(label, changeBtn, input);
 
     input.addEventListener("change", (e) => {
       const file = e.target.files && e.target.files[0];
-      if (file) handlelaciZip(index, file);
+      if (file) handleSlotZip(index, file);
       input.value = "";
     });
   });
 }
 
-/* ===== BACA 1 ZIP → laci ===== */
-async function handlelaciZip(laciIndex, zipFile) {
-  const number = laciIndex + 1;
-  const laci = photolacis[laciIndex];
-  const preview = laci.querySelector(".photo-preview");
+/* ===== BACA 1 ZIP → SLOT ===== */
+async function handleSlotZip(slotIndex, zipFile) {
+  const number = slotIndex + 1;
+  const slot = photoSlots[slotIndex];
+  const preview = slot.querySelector(".photo-preview");
 
   try {
     const archive = await window.ZipImageReader.readReportArchive(zipFile);
@@ -122,7 +122,7 @@ async function handlelaciZip(laciIndex, zipFile) {
     }
 
     if (!firstImage) {
-      alert(`ZIP laci ${number} tidak memiliki gambar.`);
+      alert(`ZIP slot ${number} tidak memiliki gambar.`);
       return;
     }
 
@@ -132,13 +132,13 @@ async function handlelaciZip(laciIndex, zipFile) {
     preview.dataset.objectUrl = url;
     preview.src = url;
     preview.hidden = false;
-    laci.classList.add("has-image");
+    slot.classList.add("has-image");
 
     // Simpan
-    laciData[laciIndex] = { photoBlob: firstImage.blob, meta, txtLine };
+    slotData[slotIndex] = { photoBlob: firstImage.blob, meta, txtLine };
 
     // Update Lampiran A
-    updateBudgetRow(laciIndex, txtLine);
+    updateBudgetRow(slotIndex, txtLine);
 
     // Set filter
     if (meta) applyMetaToFilters(meta);
@@ -154,13 +154,13 @@ async function handlelaciZip(laciIndex, zipFile) {
 
     updateStatusText();
   } catch (err) {
-    alert(`ZIP laci ${number} gagal dibaca: ${err.message}`);
+    alert(`ZIP slot ${number} gagal dibaca: ${err.message}`);
   }
 }
 
-function updateBudgetRow(laciIndex, txtLine) {
+function updateBudgetRow(slotIndex, txtLine) {
   const allRows = Array.from(budgetDocument.querySelectorAll(".budget-table tbody tr"));
-  const row = allRows[laciIndex];
+  const row = allRows[slotIndex];
   if (!row) return;
   row.cells[1].textContent = txtLine?.date || "";
   row.cells[2].textContent = txtLine?.narrative || "";
@@ -194,8 +194,8 @@ function applyMetaToFilters(meta) {
 }
 
 function updateStatusText() {
-  const filled = laciData.filter((s) => s && s.photoBlob).length;
-  if (photoStatus) photoStatus.textContent = `${filled}/9 laci terisi`;
+  const filled = slotData.filter((s) => s && s.photoBlob).length;
+  if (photoStatus) photoStatus.textContent = `${filled}/9 slot terisi`;
   updateReportTypeLabel("photos", filled, "foto");
 }
 
@@ -354,7 +354,7 @@ for (let number = 1; number <= 9; number++) {
   target.append(createBudgetRow(number));
 }
 
-initlaciInputs();
+initSlotInputs();
 
 setImageFromCandidates(document.querySelector("#unit-stamp-image"), ["data/stempel/stempel.png"]);
 setImageFromCandidates(document.querySelector("#budget-unit-stamp-image"), ["data/stempel/stempel.png"]);
