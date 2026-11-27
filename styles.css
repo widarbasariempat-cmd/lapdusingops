@@ -1,3 +1,8 @@
+Baik, ini adalah file styles.css LENGKAP yang sudah mencakup semuanya: font Arial dari folder fonts/, aturan ukuran huruf (12pt kecil, 11pt kapital), tampilan tombol melayang (floating), kotak upload ZIP di dalam slot foto, dan pengaturan posisi caption foto di kanan bawah tanpa background.
+
+Silakan timpa seluruh isi file styles.css Anda dengan kode di bawah ini:
+
+```css
 /* ============ FONT FACE — LOAD ARIAL DARI FOLDER fonts/ ============ */
 @font-face {
   font-family: 'ArialLocal';
@@ -49,7 +54,7 @@ body {
   font-family: var(--font-utama);
 }
 
-/* ============ TOOLBAR — Arial 12pt ============ */
+/* ============ TOMBOL & DASBOR ATAS ============ */
 .print-button,
 .upload-button {
   position: relative;
@@ -92,6 +97,7 @@ body {
   outline-offset: 2px;
 }
 
+/* Dasbor (Hanya Bulan, Tahun, Desa) */
 .date-controls {
   position: relative;
   z-index: 10;
@@ -121,11 +127,6 @@ body {
   font-size: 12pt;
 }
 
-.date-controls #report-type {
-  width: 340px;
-  max-width: 100%;
-}
-
 .date-controls select.has-selection {
   border-color: #3b4726;
   background: #3b4726;
@@ -148,21 +149,87 @@ body {
   gap: 4px;
 }
 
-.folder-picker {
-  position: relative;
-  flex: 0 0 auto;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: 4px;
+/* ============ TOMBOL CETAK FLOATING ============ */
+.floating-print-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9999;
+  padding: 10px 16px;
+  border-radius: 30px;
   background: #245c3b;
   color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border: none;
   cursor: pointer;
   font-family: var(--font-utama);
   font-size: 12pt;
   font-weight: 700;
+  transition: background 0.2s, transform 0.1s;
+}
+.floating-print-btn:hover,
+.floating-print-btn:focus-visible {
+  background: #19452b;
+  outline: none;
+  transform: scale(1.02);
 }
 
-/* ============ DIALOG — Arial ============ */
+/* ============ SLOT INPUT ZIP (DI DALAM LAMPIRAN B) ============ */
+.slot-zip-input {
+  display: none;
+}
+.slot-zip-label {
+  position: absolute;
+  z-index: 3;
+  inset: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #888;
+  background: #f9f9f9;
+  color: #555;
+  cursor: pointer;
+  font-family: var(--font-utama);
+  font-size: 12pt;
+  text-align: center;
+  padding: 8px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.slot-zip-label:hover,
+.slot-zip-label:focus-within {
+  background: #eef4ef;
+  border-color: #245c3b;
+  color: #19452b;
+}
+.slot-zip-label .slot-zip-icon {
+  font-size: 24pt;
+  margin-bottom: 4px;
+}
+.photo-slot.has-image .slot-zip-label {
+  display: none;
+}
+.slot-zip-change {
+  position: absolute;
+  z-index: 3;
+  top: 6px;
+  right: 6px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: #18231ddd;
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--font-utama);
+  font-size: 12pt;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.photo-slot.has-image:hover .slot-zip-change,
+.photo-slot.has-image:focus-within .slot-zip-change {
+  opacity: 1;
+}
+
+/* ============ DIALOG ============ */
 .photo-source-dialog {
   width: min(440px, calc(100vw - 32px));
   padding: 22px;
@@ -172,18 +239,15 @@ body {
   box-shadow: 0 12px 40px #0005;
   font-family: var(--font-utama);
 }
-
 .photo-source-dialog::backdrop {
   background: #0007;
 }
-
 .photo-source-dialog h2 {
   margin: 0 32px 8px 0;
   font-family: var(--font-utama);
   font-size: 12pt;
   font-weight: 700;
 }
-
 .photo-source-dialog p {
   margin: 0 0 16px;
   color: #444;
@@ -191,11 +255,9 @@ body {
   font-size: 12pt;
   line-height: 1.4;
 }
-
 .photo-source-dialog form {
   margin: 0;
 }
-
 .dialog-close {
   position: absolute;
   top: 8px;
@@ -208,12 +270,10 @@ body {
   font-family: var(--font-utama);
   font-size: 12pt;
 }
-
 .photo-source-options {
   display: grid;
   gap: 8px;
 }
-
 .photo-source-options button {
   padding: 10px 12px;
   border: 1px solid #245c3b;
@@ -226,19 +286,11 @@ body {
   font-weight: 700;
   text-align: left;
 }
-
 .photo-source-options button:hover,
 .photo-source-options button:focus-visible {
   background: #edf4ef;
   outline: 2px solid #245c3b;
 }
-
-.photo-source-options button[aria-pressed="true"] {
-  border-color: #3b4726;
-  background: #3b4726;
-  color: #fff;
-}
-
 .warning-confirm {
   display: block;
   min-width: 100px;
@@ -253,18 +305,23 @@ body {
   font-size: 12pt;
   font-weight: 700;
 }
+.warning-confirm:hover,
+.warning-confirm:focus-visible {
+  background: #19452b;
+  outline: 2px solid #d8e5dc;
+  outline-offset: 1px;
+}
 
 #photo-status {
   display: none;
 }
 
-/* ============ DOKUMEN ============ */
+/* ============ DOKUMEN & HALAMAN ============ */
 .document {
   width: 297mm;
   margin: 0 auto;
   font-family: var(--font-utama);
 }
-
 .page {
   position: relative;
   width: 297mm;
@@ -274,14 +331,13 @@ body {
   background: #fff;
   box-shadow: 0 3px 18px #0000001c;
   font-family: var(--font-utama);
-  font-size: 12pt;        /* lowercase → 12pt */
+  font-size: 12pt;
 }
-
 .page + .page {
   margin-top: 22px;
 }
 
-/* Unit heading — KAPITAL → 11pt */
+/* Header & Judul (KAPITAL = 11pt) */
 .document-header,
 .budget-header {
   display: grid;
@@ -293,7 +349,6 @@ body {
   font-size: 12pt;
   line-height: 1.2;
 }
-
 .unit-heading {
   display: flex;
   width: fit-content;
@@ -304,11 +359,9 @@ body {
   padding-bottom: 1px;
   border-bottom: 1px solid #181818;
   font-family: var(--font-utama);
-  font-size: 11pt;        /* KAPITAL → 11pt */
+  font-size: 11pt;
   text-align: center;
 }
-
-/* Attachment — campuran → 12pt (sebelumnya 10pt) */
 .attachment,
 .budget-attachment {
   display: flex;
@@ -321,137 +374,116 @@ body {
   padding-bottom: 1px;
   border-bottom: 1px solid #181818;
   font-family: var(--font-utama);
-  font-size: 12pt;        /* campuran → 12pt */
+  font-size: 12pt;
   text-align: left;
 }
-
-/* Judul laporan — KAPITAL → 11pt */
 .report-title,
 .budget-title {
   margin: 22px 0 25px;
   text-align: center;
   font-family: var(--font-utama);
-  font-size: 11pt;        /* KAPITAL → 11pt */
+  font-size: 11pt;
   line-height: 1.3;
   font-weight: 700;
 }
 
-/* Tabel */
+/* ============ TABEL LAMPIRAN A ============ */
 .budget-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
   font-family: var(--font-utama);
-  font-size: 12pt;        /* campuran → 12pt */
+  font-size: 12pt;
   line-height: 1.15;
 }
-
 .budget-table col:nth-child(1) { width: 4%; }
 .budget-table col:nth-child(2) { width: 21%; }
 .budget-table col:nth-child(3) { width: 48%; }
 .budget-table col:nth-child(4) { width: 12%; }
 .budget-table col:nth-child(5) { width: 15%; }
-
 .budget-table th,
 .budget-table td {
   border: 1px solid #181818;
   padding: 1.2mm;
 }
-
 .budget-table th {
   font-family: var(--font-utama);
-  font-size: 11pt;        /* KAPITAL → 11pt */
+  font-size: 11pt;
   font-weight: 700;
   text-align: center;
   vertical-align: middle;
 }
-
 .budget-table thead th {
   padding: 1mm;
 }
-
 .budget-table .budget-column-numbers th {
   padding: 0.6mm;
   font-size: 11pt;
   font-weight: 400;
 }
-
 .budget-table tbody tr {
   height: 18mm;
 }
-
 .budget-table tbody td {
   vertical-align: top;
   overflow-wrap: anywhere;
   font-family: var(--font-utama);
   font-size: 12pt;
 }
-
 .budget-table tbody td:nth-child(3) {
   text-align: justify;
   text-justify: inter-word;
 }
-
 .budget-table tbody td:first-child,
 .budget-table tbody td:nth-child(4) {
   text-align: center;
 }
-
 .budget-table td[contenteditable="true"]:focus {
   outline: 2px solid #245c3b;
   outline-offset: -2px;
 }
-
 .budget-page-two .budget-table {
   margin-top: 3mm;
 }
-
 .budget-signatures {
   margin-top: 7mm;
 }
 
-/* ============ GRID FOTO ============ */
+/* ============ GRID FOTO LAMPIRAN B ============ */
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 3mm;
 }
-
 .first-grid {
   display: flex;
   flex-direction: column;
   gap: 6mm;
 }
-
 .photo-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   height: 60mm;
   border: 1px solid #555;
 }
-
 .first-grid .photo-card {
   display: flex;
   flex-direction: column;
   border: 0;
   border-right: 1px solid #555;
 }
-
 .first-grid .photo-card:last-child {
   border-right: 0;
 }
-
 .first-grid .photo-number {
   flex: 0 0 18px;
   border-bottom-color: #555;
 }
-
 .photo-card {
   min-width: 0;
   border: 1px solid #555;
   padding: 0;
 }
-
 .photo-number {
   height: 18px;
   margin: 0;
@@ -462,7 +494,6 @@ body {
   font-weight: 700;
   line-height: 18px;
 }
-
 .photo-slot {
   position: relative;
   height: calc(100% - 18px);
@@ -471,12 +502,10 @@ body {
   border: 0;
   background: #fff;
 }
-
 .first-grid .photo-slot {
   height: auto;
   flex: 1;
 }
-
 .second-grid {
   grid-template-rows: 60mm;
   width: 100%;
@@ -485,17 +514,14 @@ body {
   border-top: 1px solid #555;
   border-left: 1px solid #555;
 }
-
 .second-grid .photo-card {
   border: 0;
   border-right: 1px solid #555;
   border-bottom: 1px solid #555;
 }
-
 .second-grid .photo-slot {
   height: calc(100% - 18px);
 }
-
 .page-number {
   margin-top: 3mm;
   text-align: center;
@@ -516,29 +542,24 @@ body {
   font-size: 12pt;
   line-height: 1.25;
 }
-
 .signature-block {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-
 .left-signature,
 .right-signature {
   position: relative;
   min-height: 145px;
 }
-
 .right-signature {
   width: calc(100% - 24px);
   margin-left: 24px;
 }
-
 .left-signature {
   --stamp-left: 52px;
   --stamp-size: 145px;
 }
-
 .signature-block.left-signature > p,
 .signature-block.right-signature > p,
 .signature-block.left-signature > strong,
@@ -550,7 +571,6 @@ body {
   width: 100%;
   text-align: center;
 }
-
 .signature-block.left-signature > .signature-space,
 .signature-block.right-signature > .signature-space {
   position: absolute;
@@ -560,17 +580,14 @@ body {
   width: 100%;
   height: 145px;
 }
-
 .signature-block.left-signature > strong,
 .signature-block.right-signature > strong {
   margin-top: 48px;
 }
-
 .signature-block p {
   min-height: 27px;
   margin: 0;
 }
-
 .signature-space {
   position: relative;
   display: flex;
@@ -579,7 +596,6 @@ body {
   align-items: center;
   justify-content: center;
 }
-
 .asset-placeholder {
   position: absolute;
   top: 0;
@@ -590,7 +606,6 @@ body {
   font-size: 12pt;
   line-height: 1.15;
 }
-
 .signature-placeholder {
   top: auto;
   right: 0;
@@ -599,14 +614,12 @@ body {
   max-width: none;
   text-align: center;
 }
-
 .signature-image,
 .stamp-image {
   position: absolute;
   z-index: 2;
   object-fit: contain;
 }
-
 .signature-image {
   top: calc(50% - 4px);
   left: 50%;
@@ -614,13 +627,11 @@ body {
   height: 48px;
   transform: translate(-50%, -50%);
 }
-
 .right-signature .signature-image {
   top: 58px;
   width: min(300px, 88%);
   height: 78px;
 }
-
 .commander-signature-image {
   left: calc(var(--stamp-left) + var(--stamp-size) - 18.7%);
   top: calc(50% - 9px);
@@ -629,7 +640,6 @@ body {
   height: 58px;
   transform: translateY(-50%);
 }
-
 .stamp-image {
   left: var(--stamp-left);
   top: 50%;
@@ -637,35 +647,19 @@ body {
   height: var(--stamp-size);
   transform: translateY(-50%);
 }
-
 img[hidden] {
   display: none;
 }
-
 .signature-space.has-stamp-image > .asset-placeholder:not(.signature-placeholder),
 .signature-space.has-signature-image > .signature-placeholder {
   display: none;
 }
-
 .signature-block strong {
   margin-top: 1px;
   font-weight: 400;
 }
 
-/* ============ RESPONSIVE ============ */
-@media (max-width: 800px) {
-  .date-controls {
-    width: 100%;
-    justify-content: center;
-    gap: 5px;
-  }
-
-  body {
-    padding: 10px;
-  }
-}
-
-/* ============ PREVIEW FOTO ============ */
+/* ============ PREVIEW FOTO & CAPTION ============ */
 .photo-preview {
   position: absolute;
   z-index: 0;
@@ -674,11 +668,9 @@ img[hidden] {
   height: calc(100% - 6px);
   object-fit: fill;
 }
-
 .photo-preview[hidden] {
   display: none;
 }
-
 .image-input {
   position: absolute;
   width: 1px;
@@ -688,7 +680,6 @@ img[hidden] {
   white-space: nowrap;
   clip-path: inset(50%);
 }
-
 .image-picker {
   position: absolute;
   z-index: 2;
@@ -706,126 +697,7 @@ img[hidden] {
   text-align: center;
 }
 
-.photo-slot.has-image .image-picker {
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.photo-slot.has-image:hover .image-picker,
-.photo-slot.has-image:focus-within .image-picker {
-  opacity: 1;
-}
-
-.image-picker:hover,
-.image-picker:focus-visible {
-  background: #111;
-  outline: 2px solid #fff;
-}
-
-/* ============ CETAK ============ */
-@media print {
-  .print-button,
-  .upload-button,
-  .date-controls,
-  .photo-source-dialog,
-  .image-picker {
-    display: none !important;
-  }
-
-  html,
-  body {
-    width: auto;
-    margin: 0;
-    padding: 0;
-    background: #fff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .document {
-    width: 267mm;
-    margin: 0;
-    zoom: 1 !important;
-  }
-
-  body.printing-both .report-canvas {
-    display: block !important;
-  }
-
-  body.printing-both .report-canvas + .report-canvas {
-    break-before: page;
-    page-break-before: always;
-  }
-
-  .page {
-    width: 267mm;
-    height: 186mm;
-    margin: 0;
-    padding: 0;
-    box-shadow: none;
-    break-after: page;
-    page-break-after: always;
-  }
-
-  .page:last-child {
-    break-after: auto;
-    page-break-after: auto;
-  }
-
-  .page + .page {
-    margin-top: 0;
-  }
-
-  /* DEFAULT: semua teks 12pt */
-  .document,
-  .document * {
-    font-family: var(--font-utama) !important;
-    font-size: 12pt !important;
-  }
-
-  /* KAPITAL → 11pt */
-  .document .unit-heading,
-  .document .report-title,
-  .document .budget-title,
-  .document .budget-table th {
-    font-family: var(--font-utama) !important;
-    font-size: 11pt !important;
-  }
-
-  /* (Attachment ikut default 12pt — TIDAK ADA override 10pt lagi) */
-
-  .budget-page-one .budget-header {
-    min-height: 0;
-  }
-
-  .budget-page-one .budget-title {
-    margin: 8px 0 10px;
-    line-height: 1.15;
-  }
-
-  .budget-page-one .budget-table,
-  .budget-page-one .budget-table tr {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  .budget-page-one .budget-table tbody tr {
-    height: 14mm;
-  }
-
-  .budget-table td[contenteditable="true"]:focus {
-    outline: none;
-  }
-
-  .asset-placeholder {
-    font-size: 12pt;
-  }
-}
-
-/* =====================================================================
- * OVERLAY CAPTION FOTO — KANAN BAWAH, RATA KANAN, TANPA BACKGROUND
- * Arial 12pt, selalu terlihat di atas gambar apapun (outline hitam)
- * ===================================================================== */
+/* ============ OVERLAY CAPTION FOTO (KANAN BAWAH) ============ */
 .photo-caption {
   position: absolute;
   z-index: 1;
@@ -846,8 +718,6 @@ img[hidden] {
   color: #fff;
   text-align: right;
 }
-
-/* Outline hitam di setiap span agar selalu terbaca di background apapun */
 .photo-caption span {
   color: #fff;
   -webkit-text-stroke: 0.4px #000;
@@ -863,34 +733,126 @@ img[hidden] {
      1px  1px 0 #000,
      0 0 4px rgba(0, 0, 0, 0.85);
 }
-
 .photo-caption .cap-babinsa {
   font-family: var(--font-utama);
   font-size: 12pt;
   font-weight: 700;
 }
-
 .photo-caption .cap-koordinat {
   font-family: var(--font-utama);
   font-size: 12pt;
   font-weight: 400;
   white-space: nowrap;
 }
-
 .photo-caption .cap-waktu {
   font-family: var(--font-utama);
   font-size: 12pt;
   font-weight: 400;
 }
 
-/* Caption ikut tercetak — tanpa background */
+/* ============ RESPONSIVE ============ */
+@media (max-width: 800px) {
+  .date-controls {
+    width: 100%;
+    justify-content: center;
+    gap: 5px;
+  }
+  body {
+    padding: 10px;
+  }
+}
+
+/* ============ PRINT ============ */
 @media print {
+  .print-button,
+  .upload-button,
+  .date-controls,
+  .photo-source-dialog,
+  .image-picker,
+  .floating-print-btn,
+  .slot-zip-label,
+  .slot-zip-change {
+    display: none !important;
+  }
+
+  html,
+  body {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .document {
+    width: 267mm;
+    margin: 0;
+    zoom: 1 !important;
+  }
+  body.printing-both .report-canvas {
+    display: block !important;
+  }
+  body.printing-both .report-canvas + .report-canvas {
+    break-before: page;
+    page-break-before: always;
+  }
+  .page {
+    width: 267mm;
+    height: 186mm;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    break-after: page;
+    page-break-after: always;
+  }
+  .page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .page + .page {
+    margin-top: 0;
+  }
+
+  .document,
+  .document * {
+    font-family: var(--font-utama) !important;
+    font-size: 12pt !important;
+  }
+  .document .unit-heading,
+  .document .report-title,
+  .document .budget-title,
+  .document .budget-table th {
+    font-family: var(--font-utama) !important;
+    font-size: 11pt !important;
+  }
+
+  .budget-page-one .budget-header {
+    min-height: 0;
+  }
+  .budget-page-one .budget-title {
+    margin: 8px 0 10px;
+    line-height: 1.15;
+  }
+  .budget-page-one .budget-table,
+  .budget-page-one .budget-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .budget-page-one .budget-table tbody tr {
+    height: 14mm;
+  }
+  .budget-table td[contenteditable="true"]:focus {
+    outline: none;
+  }
+  .asset-placeholder {
+    font-size: 12pt;
+  }
+
   #photo-document .photo-caption {
     display: flex !important;
     background: transparent !important;
     font-size: 12pt !important;
   }
-
   #photo-document .photo-caption .cap-babinsa,
   #photo-document .photo-caption .cap-koordinat,
   #photo-document .photo-caption .cap-waktu {
@@ -899,3 +861,4 @@ img[hidden] {
     color: #fff !important;
   }
 }
+```
