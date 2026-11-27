@@ -275,7 +275,7 @@
     return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
   }
 
-  function mapPhotoEntries(entries, slotCount) {
+  function mapPhotoEntries(entries, frameCount) {
     const sortedEntries = [...entries].sort((first, second) => first.path.localeCompare(second.path, "id", { numeric: true, sensitivity: "base" }));
     const photosByNumber = new Map();
     const overflowEntries = [];
@@ -285,7 +285,7 @@
       .filter(({ date }) => date)
       .sort((first, second) => first.date.getTime() - second.date.getTime() || first.entry.path.localeCompare(second.entry.path, "id", { numeric: true, sensitivity: "base" }));
 
-    datedEntries.slice(0, slotCount).forEach(({ entry }, index) => photosByNumber.set(index + 1, entry));
+    datedEntries.slice(0, frameCount).forEach(({ entry }, index) => photosByNumber.set(index + 1, entry));
     const datedEntrySet = new Set(datedEntries.map(({ entry }) => entry));
     sortedEntries.forEach((entry) => {
       if (datedEntrySet.has(entry)) return;
@@ -294,10 +294,10 @@
       else if (photosByNumber.has(number)) { duplicateNumbers.add(number); overflowEntries.push(entry); }
       else photosByNumber.set(number, entry);
     });
-    let nextSlot = 1;
+    let nextFrame = 1;
     overflowEntries.forEach((entry) => {
-      while (photosByNumber.has(nextSlot) && nextSlot <= slotCount) nextSlot++;
-      if (nextSlot <= slotCount) photosByNumber.set(nextSlot++, entry);
+      while (photosByNumber.has(nextFrame) && nextFrame <= frameCount) nextFrame++;
+      if (nextFrame <= frameCount) photosByNumber.set(nextFrame++, entry);
     });
     return { photosByNumber, duplicateNumbers, ignoredCount: Math.max(0, entries.length - photosByNumber.size) };
   }

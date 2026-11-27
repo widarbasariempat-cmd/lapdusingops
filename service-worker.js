@@ -1,4 +1,4 @@
-const CACHE_NAME = "lapdusingops-shell-v3";
+const CACHE_NAME = "lapdusingops-shell-v4";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const SHELL_FILES = [
   "./script.js",
   "./pwa.js",
   "./photo-watermark.js",
+  "./draft-manager.js",
   "./zip-reader.js",
   "./data/report-data.js",
   "./manifest.webmanifest",
@@ -22,7 +23,6 @@ self.addEventListener("install", (event) => {
         const response = await fetch(url, { cache: "reload" });
         if (response.ok) await cache.put(url, response);
       } catch (error) {
-        // Offline or a missing optional resource should not prevent installation.
         console.warn("PWA: resource was not cached", url, error);
       }
     }));

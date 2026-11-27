@@ -17,7 +17,7 @@ const reportTypeLabels = {
 };
 const printButton = document.querySelector("#print-button");
 const photoStatus = document.querySelector("#photo-status");
-const photoSlots = Array.from(document.querySelectorAll(".photo-slot"));
+const photoFrames = Array.from(document.querySelectorAll(".photo-frame"));
 const reportDocument = document.querySelector(".document");
 const budgetDocument = document.querySelector("#budget-document");
 const yearControl = document.querySelector("#year-control");
@@ -27,54 +27,54 @@ const now = new Date();
 const currentYear = now.getFullYear();
 const signatureExtensions = ["png", "jpg", "jpeg", "webp"];
 
-let slotData = []; // array 9 elemen: { photoBlob, meta, txtLine } | null
+let frameData = []; // array 9 elemen: { photoBlob, meta, txtLine } | null
 let selectedReportType = "budget";
 
-/* ===== INIT 9 SLOT ZIP ===== */
-function initSlotInputs() {
-  slotData = Array.from({ length: 9 }, () => null);
-  photoSlots.forEach((slot, index) => {
+/* ===== INIT 9 FRAME ZIP ===== */
+function initFrameInputs() {
+  frameData = Array.from({ length: 9 }, () => null);
+  photoFrames.forEach((frame, index) => {
     const number = index + 1;
-    slot.innerHTML = "";
+    frame.innerHTML = "";
 
     const preview = document.createElement("img");
     preview.className = "photo-preview";
     preview.alt = `Foto kegiatan ${number}`;
     preview.hidden = true;
-    slot.append(preview);
+    frame.append(preview);
 
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".zip,application/zip";
-    input.id = `slot-zip-input-${number}`;
-    input.className = "slot-zip-input";
+    input.id = `zip-input-${number}`;
+    input.className = "zip-input";
     input.setAttribute("aria-label", `Pilih ZIP kegiatan ${number}`);
 
     const label = document.createElement("label");
     label.htmlFor = input.id;
-    label.className = "slot-zip-label";
-    label.innerHTML = `<div class="slot-zip-icon">📁</div><div>Unggah ZIP</div><div style="font-size:9pt;opacity:.7">Slot ${number}</div>`;
+    label.className = "zip-label";
+    label.innerHTML = `<div class="zip-icon">📁</div><div>Unggah ZIP</div><div style="font-size:9pt;opacity:.7">Foto ${number}</div>`;
 
     const changeBtn = document.createElement("label");
     changeBtn.htmlFor = input.id;
-    changeBtn.className = "slot-zip-change";
+    changeBtn.className = "zip-change";
     changeBtn.textContent = "Ganti ZIP";
 
-    slot.append(label, changeBtn, input);
+    frame.append(label, changeBtn, input);
 
     input.addEventListener("change", (e) => {
       const file = e.target.files && e.target.files[0];
-      if (file) handleSlotZip(index, file);
+      if (file) handleFrameZip(index, file);
       input.value = "";
     });
   });
 }
 
-/* ===== BACA 1 ZIP → SLOT ===== */
-async function handleSlotZip(slotIndex, zipFile) {
-  const number = slotIndex + 1;
-  const slot = photoSlots[slotIndex];
-  const preview = slot.querySelector(".photo-preview");
+/* ===== BACA 1 ZIP → FRAME ===== */
+async function handleFrameZip(frameIndex, zipFile) {
+  const number = frameIndex + 1;
+  const frame = photoFrames[frameIndex];
+  const preview = frame.querySelector(".photo-preview");
 
   try {
     const archive = await window.ZipImageReader.readReportArchive(zipFile);
@@ -122,7 +122,7 @@ async function handleSlotZip(slotIndex, zipFile) {
     }
 
     if (!firstImage) {
-      alert(`ZIP slot ${number} tidak memiliki gambar.`);
+      alert(`ZIP foto ${number} tidak memiliki gambar.`);
       return;
     }
 
@@ -132,13 +132,13 @@ async function handleSlotZip(slotIndex, zipFile) {
     preview.dataset.objectUrl = url;
     preview.src = url;
     preview.hidden = false;
-    slot.classList.add("has-image");
+    frame.classList.add("has-image");
 
     // Simpan
-    slotData[slotIndex] = { photoBlob: firstImage.blob, meta, txtLine };
+    frameData[frameIndex] = { photoBlob: firstImage.blob, meta, txtLine };
 
     // Update Lampiran A
-    updateBudgetRow(slotIndex, txtLine);
+    updateBudgetRow(frameIndex, txtLine);
 
     // Set filter
     if (meta) applyMetaToFilters(meta);
@@ -154,13 +154,13 @@ async function handleSlotZip(slotIndex, zipFile) {
 
     updateStatusText();
   } catch (err) {
-    alert(`ZIP slot ${number} gagal dibaca: ${err.message}`);
+    alert(`ZIP foto ${number} gagal dibaca: ${err.message}`);
   }
 }
 
-function updateBudgetRow(slotIndex, txtLine) {
+function updateBudgetRow(frameIndex, txtLine) {
   const allRows = Array.from(budgetDocument.querySelectorAll(".budget-table tbody tr"));
-  const row = allRows[slotIndex];
+  const row = allRows[frameIndex];
   if (!row) return;
   row.cells[1].textContent = txtLine?.date || "";
   row.cells[2].textContent = txtLine?.narrative || "";
@@ -194,8 +194,8 @@ function applyMetaToFilters(meta) {
 }
 
 function updateStatusText() {
-  const filled = slotData.filter((s) => s && s.photoBlob).length;
-  if (photoStatus) photoStatus.textContent = `${filled}/9 slot terisi`;
+  const filled = frameData.filter((s) => s && s.photoBlob).length;
+  if (photoStatus) photoStatus.textContent = `${filled}/9 foto terisi`;
   updateReportTypeLabel("photos", filled, "foto");
 }
 
@@ -354,7 +354,7 @@ for (let number = 1; number <= 9; number++) {
   target.append(createBudgetRow(number));
 }
 
-initSlotInputs();
+initFrameInputs();
 
 setImageFromCandidates(document.querySelector("#unit-stamp-image"), ["data/stempel/stempel.png"]);
 setImageFromCandidates(document.querySelector("#budget-unit-stamp-image"), ["data/stempel/stempel.png"]);

@@ -1,7 +1,7 @@
 /* =====================================================================
  * photo-json.js — Caption foto dari gabungan.json
  * Dipanggil OTOMATIS dari script.js saat ZIP berisi .json dideteksi.
- * Caption: kanan bawah, Arial 12pt, rata kanan, ikut tercetak.
+ * Caption: kanan bawah, Arial 11pt, rata kanan, ikut tercetak.
  * ===================================================================== */
 (function () {
   "use strict";
@@ -53,13 +53,13 @@
       });
     });
     window.photoMetadataByNumber = map;
-    console.log("[photo-json] " + map.size + " metadata tersimpan (slot 1.." + map.size + ")");
+    console.log("[photo-json] " + map.size + " metadata tersimpan (foto 1.." + map.size + ")");
   }
 
-  function applyCaptionToSlot(slot, number) {
-    if (!slot) return;
-    removeCaptionFromSlot(slot);
-    if (!slot.classList.contains("has-image")) return;
+  function applyCaptionToFrame(frame, number) {
+    if (!frame) return;
+    removeCaptionFromFrame(frame);
+    if (!frame.classList.contains("has-image")) return;
 
     const meta = window.photoMetadataByNumber.get(number);
     if (!meta) return;
@@ -71,33 +71,33 @@
       '<span class="cap-babinsa">'   + esc(formatBabinsaLine(meta.nama_desa)) + '</span>' +
       '<span class="cap-koordinat">' + esc(meta.koordinat) + '</span>' +
       '<span class="cap-waktu">'     + esc(meta.tanggal) + ' ' + esc(meta.waktu) + '</span>';
-    slot.appendChild(cap);
+    frame.appendChild(cap);
   }
 
-  function removeCaptionFromSlot(slot) {
-    if (!slot) return;
-    const old = slot.querySelectorAll(".photo-caption");
+  function removeCaptionFromFrame(frame) {
+    if (!frame) return;
+    const old = frame.querySelectorAll(".photo-caption");
     for (let i = 0; i < old.length; i++) old[i].remove();
   }
 
   function refreshAllCaptions() {
-    const slots = document.querySelectorAll("#photo-document .photo-slot");
-    slots.forEach(function (slot, idx) { applyCaptionToSlot(slot, idx + 1); });
+    const frames = document.querySelectorAll("#photo-document .photo-frame");
+    frames.forEach(function (frame, idx) { applyCaptionToFrame(frame, idx + 1); });
   }
 
-  function watchSlots() {
-    const slots = document.querySelectorAll("#photo-document .photo-slot");
-    if (!slots.length) return;
-    slots.forEach(function (slot, idx) {
+  function watchFrames() {
+    const frames = document.querySelectorAll("#photo-document .photo-frame");
+    if (!frames.length) return;
+    frames.forEach(function (frame, idx) {
       const number = idx + 1;
       const observer = new MutationObserver(function () {
-        if (slot.classList.contains("has-image")) {
-          requestAnimationFrame(function () { applyCaptionToSlot(slot, number); });
+        if (frame.classList.contains("has-image")) {
+          requestAnimationFrame(function () { applyCaptionToFrame(frame, number); });
         } else {
-          removeCaptionFromSlot(slot);
+          removeCaptionFromFrame(frame);
         }
       });
-      observer.observe(slot, { attributes: true, attributeFilter: ["class"] });
+      observer.observe(frame, { attributes: true, attributeFilter: ["class"] });
     });
     refreshAllCaptions();
   }
@@ -191,7 +191,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    watchSlots();
+    watchFrames();
   });
 
   window.PhotoJson = {
