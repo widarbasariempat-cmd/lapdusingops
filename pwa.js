@@ -85,7 +85,49 @@
   });
 
   const controls = document.querySelector(".date-controls");
-  if (!controls || !("serviceWorker" in navigator)) return;
+  if (!controls) return;
+
+  // Replace the two separate upload controls with one button and a small picker.
+  const oldBudgetButton = document.getElementById("upload-budget-button");
+  const oldPhotosButton = document.getElementById("upload-photos-button");
+  oldBudgetButton?.remove();
+  oldPhotosButton?.remove();
+
+  const uploadButton = document.createElement("button");
+  uploadButton.id = "upload-attachments-button";
+  uploadButton.className = "print-button";
+  uploadButton.type = "button";
+  uploadButton.textContent = "Unggah Lampiran";
+  uploadButton.setAttribute("aria-haspopup", "dialog");
+  controls.insertBefore(uploadButton, document.getElementById("print-button"));
+
+  const uploadDialog = document.createElement("dialog");
+  uploadDialog.id = "attachment-upload-dialog";
+  uploadDialog.className = "photo-source-dialog";
+  uploadDialog.setAttribute("aria-labelledby", "attachment-upload-title");
+  uploadDialog.innerHTML = `
+    <form method="dialog">
+      <button class="dialog-close" type="submit" aria-label="Tutup">×</button>
+    </form>
+    <h2 id="attachment-upload-title">Pilih Lampiran</h2>
+    <div class="photo-source-options">
+      <button type="button" data-attachment-type="budget">Unggah TXT Lampiran A</button>
+      <button type="button" data-attachment-type="photos">Unggah Foto Lampiran B</button>
+    </div>
+  `;
+  document.body.append(uploadDialog);
+
+  uploadButton.addEventListener("click", () => uploadDialog.showModal());
+  uploadDialog.querySelectorAll("[data-attachment-type]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const selector = document.getElementById("report-type");
+      selector.value = button.dataset.attachmentType;
+      selector.dispatchEvent(new Event("change", { bubbles: true }));
+      uploadDialog.close();
+    });
+  });
+
+  if (!("serviceWorker" in navigator)) return;
 
   const buttonStyle = [
     "padding:6px 9px", "border:0", "border-radius:6px", "background:#245c3b",
@@ -103,6 +145,7 @@
       controls.append(button);
     }
     button.textContent = label;
+    button.hidden = true;
     return button;
   }
 
@@ -115,7 +158,7 @@
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     installPrompt = event;
-    installButton.hidden = false;
+    installButton.hidden = true;
   });
   window.addEventListener("appinstalled", () => {
     installPrompt = null;
@@ -133,7 +176,7 @@
   });
 
   function showUpdateIfWaiting() {
-    updateButton.hidden = !(registration?.waiting && navigator.serviceWorker.controller);
+    updateButton.hidden = true;
   }
 
   updateButton.addEventListener("click", () => {
